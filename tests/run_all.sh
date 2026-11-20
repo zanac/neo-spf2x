@@ -42,6 +42,8 @@ echo "== hardware netlists (AES/MVS x CHA/PROG)"
 python3 "$ROOT/tests/test_hw_netlist.py"
 if command -v kicad-cli >/dev/null 2>&1; then
     python3 "$ROOT/hardware/gen/build_sch.py"
+    echo "== placed boards: outline/holes, link mating after the flip, facing clearance"
+    python3 "$ROOT/hardware/gen/checks.py" aes_cha aes_prog mvs_cha mvs_prog
 else
     echo "== schematic round-trip skipped (kicad-cli not installed)"
 fi

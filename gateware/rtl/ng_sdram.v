@@ -14,9 +14,9 @@
 // (rsp_rdata, 64 bit) is ready or a write has been issued completely.
 `timescale 1ns/1ps
 module ng_sdram #(
-    parameter TRCD = 3, CL = 3, TRC = 8, TRP = 3, TRFC = 8, TWR = 2,
+    parameter TRCD = 3, CL = 3, TRC = 9, TRP = 3, TRFC = 9, TWR = 2,   // 133 MHz, -7 grade: tRC/tRFC 63 ns
     parameter REFI = 700,            // clk cycles between refreshes
-    parameter INIT_CLKS = 64         // power-up wait (real part: >= 100 us)
+    parameter INIT_CLKS = 64         // power-up wait; simulation value. Real part: >= 200 us (AS4C32M16SB), 26700 clocks at 133 MHz
 ) (
     input  wire        clk, rst,
     input  wire        req_valid,
@@ -27,6 +27,7 @@ module ng_sdram #(
     output reg         rsp_valid,
     output reg  [63:0] rsp_rdata,
     // chip pins
+    output reg         sd_cke,       // low at power-up, high after the >= 200 us clocked wait (AS4C32M16SB note 11)
     output reg  [1:0]  sd_cs_n,
     output reg         sd_ras_n, sd_cas_n, sd_we_n,
     output reg  [1:0]  sd_ba,
@@ -59,8 +60,10 @@ module ng_sdram #(
 
     always @(posedge clk) begin
         sd_cs_n <= 2'b00; sd_ras_n <= 1'b1; sd_cas_n <= 1'b1; sd_we_n <= 1'b1;
-        sd_dqm <= 2'b00; sd_dq_oe <= 1'b0; rsp_valid <= 1'b0;
+        sd_dqm <= (st == S_INIT) ? 2'b11 : 2'b00;   // DQM high while powering up (datasheet)
+        sd_dq_oe <= 1'b0; rsp_valid <= 1'b0;
         if (rst) begin
+            sd_cke <= 1'b0;
             st <= S_INIT; cnt <= 0; refc <= 0; refp <= 0; gap <= 0;
         end else begin
             // refresh timer (runs once initialised)
@@ -69,6 +72,7 @@ module ng_sdram #(
                 else refc <= refc + 1;
             end
             cnt <= cnt + 1;
+            if (st != S_INIT || cnt >= INIT_CLKS - 2) sd_cke <= 1'b1;
             case (st)
             S_INIT: if (cnt >= INIT_CLKS) begin
                         cmd(0, 1, 0); sd_a <= 13'h0400; st <= S_PRE; cnt <= 0; end

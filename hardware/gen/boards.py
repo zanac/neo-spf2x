@@ -47,9 +47,9 @@ class Builder:
         return self.d.add(Part(self.ref(prefix), sym, value, fp, pins, **kw))
 
     def r(self, a, b, val="10k"):
-        return self.add("R", "Device:R", val, "Resistor_SMD:R_0402", {"1": a, "2": b})
+        return self.add("R", "Device:R", val, "Resistor_SMD:R_0402_1005Metric", {"1": a, "2": b})
 
-    def c(self, a, b, val="100n", fp="Capacitor_SMD:C_0402"):
+    def c(self, a, b, val="100n", fp="Capacitor_SMD:C_0402_1005Metric"):
         return self.add("C", "Device:C", val, fp, {"1": a, "2": b})
 
     def stock(self, prefix, lib, name, value, fp, nets, default=None):
@@ -118,15 +118,16 @@ def add_translators(b, sigs, oe_net, edge_net, fpga_net):
                 if k < len(lst):
                     pins[str(T16[f"{u}A{k+1}"])] = fpga_net(lst[k])
                     pins[str(T16[f"{u}B{k+1}"])] = edge_net(lst[k])
-                else:               # unused channel: inputs must not float
-                    pins[str(T16[f"{u}A{k+1}"])] = None
+                else:               # unused channel: the input side must not float (data I/Os are always active,
+                    # SCAS416P function table note 1) and the direction may be either: both sides to GND is safe
+                    pins[str(T16[f"{u}A{k+1}"])] = GND
                     pins[str(T16[f"{u}B{k+1}"])] = GND
         if len(groups[i:i + 2]) == 1:      # the second half of the chip is unused
             pins[str(T16["2OE"])] = V3
             pins[str(T16["2DIR"])] = GND
             for k in range(8):
                 pins[str(T16[f"2A{k+1}"])] = GND
-                pins[str(T16[f"2B{k+1}"])] = None
+                pins[str(T16[f"2B{k+1}"])] = GND
         p = b.add("U", sym, "SN74ALVC164245DGG", "Package_SO:TSSOP-48_6.1x12.5mm_P0.5mm", pins)
         chips.append(p)
     # bypass: one 100 nF per supply pin pair
@@ -203,7 +204,10 @@ def assign_balls(groups_by_edge, balls, extra_clock=()):
     # clock inputs first on PCLK-capable balls
     for sig in extra_clock:
         for e in ("PT", "PL", "PR"):
-            cand = [k for k in lists[e] if "PCLK" in free[k]["dual"]]
+            # the PLL reference (24M) must sit on a dedicated PLL input (xxx_GPLLnT_IN, TN-02200 7.1/18.2.1);
+            # the other clocks only need to be PCLK-capable
+            want = "GPLL" if sig == "24M" else "PCLK"
+            cand = [k for k in lists[e] if want in free[k]["dual"] and (want != "GPLL" or "T_IN" in free[k]["dual"])]
             if cand:
                 assign[sig] = cand[0]
                 lists[e].remove(cand[0])
@@ -236,7 +240,7 @@ def fpga_part(b, balls, assign, extra_nets):
             net = inv.get(ball) or extra_nets.get(ball)
         elif v["kind"] in ("power", "vccio", "gnd"):
             u, et = upwr, "power_in"
-            net = {"VCC": V1, "VCCAUX": V25}.get(v["func"], GND if v["kind"] == "gnd" else V3)
+            net = {"VCC": V1, "VCCAUX": "VCCAUX_F"}.get(v["func"], GND if v["kind"] == "gnd" else V3)
         else:
             u, et = ucfg, "passive"
             net = extra_nets.get(ball)          # None -> no-connect
@@ -252,14 +256,25 @@ def fpga_part(b, balls, assign, extra_nets):
 
 
 def fpga_decoupling(b, balls):
-    for rail, func in ((V1, "VCC"), (V25, "VCCAUX")):
-        n = sum(1 for v in balls.values() if v["func"] == func)
-        for _ in range(math.ceil(n / 2)):
-            b.c(rail, GND)
-    for _ in range(math.ceil(22 / 2)):
+    """TN-02038 Table 3.1: VCC 3 x 10 uF + 100 nF per pin; VCCAUX 120 ohm ferrite + 10 uF + 100 nF per pin;
+    VCCIO 10 uF per bank + 100 nF per pin (all VCCIO banks used here, all at 3.3 V)."""
+    C10 = "Capacitor_SMD:C_0603_1608Metric"
+    n_vcc = sum(1 for v in balls.values() if v["func"] == "VCC")
+    n_aux = sum(1 for v in balls.values() if v["func"] == "VCCAUX")
+    banks = sorted({v["bank"] for v in balls.values() if v["func"].startswith("VCCIO")})
+    n_io = sum(1 for v in balls.values() if v["func"].startswith("VCCIO"))
+    for _ in range(n_vcc):
+        b.c(V1, GND)
+    for _ in range(3):
+        b.c(V1, GND, "10u", C10)
+    b.add("FB", "Device:FerriteBead", "120R@100MHz", "Inductor_SMD:L_0603_1608Metric", {"1": V25, "2": "VCCAUX_F"})
+    for _ in range(n_aux):
+        b.c("VCCAUX_F", GND)
+    b.c("VCCAUX_F", GND, "10u", C10)
+    for _ in range(n_io):
         b.c(V3, GND)
-    for rail in (V1, V25, V3):
-        b.c(rail, GND, "10u", "Capacitor_SMD:C_0805")
+    for _ in banks:
+        b.c(V3, GND, "10u", C10)
 
 
 # --------------------------------------------------------------- SDRAM (512 Mbit x16, TSOP-II-54)
@@ -284,7 +299,7 @@ def add_sdram(b, cs_net):
         elif nm == "NC":
             net, et = None, "no_connect"
         elif nm == "CKE":
-            net, et = V3, "input"
+            net, et = "SDR_CKE", "input"      # driven by the FPGA: low at power-up (datasheet note 11)
         elif nm.startswith("DQ"):
             net, et = f"SDR_DQ{nm[2:]}", "bidirectional"
         elif nm.startswith("A"):
@@ -296,33 +311,45 @@ def add_sdram(b, cs_net):
         pins[str(n)] = net
         (left if n <= 27 else right).append(dict(number=str(n), name=nm, etype=et, side="L" if n <= 27 else "R"))
     sym = custom(b.d, "SDRAM_512M_X16_TSOPII54", {1: left + right})
-    b.add("U", sym, "IS42S32M16 / AS4C32M16SB (512Mbit x16)", "Package_SO:TSOP-II-54_22.2x10.16mm_P0.8mm", pins)
+    b.add("U", sym, "AS4C32M16SB / IS42S16320D (512Mbit x16)", "Package_SO:TSOP-II-54_22.2x10.16mm_P0.8mm", pins)
+    # power-up (AS4C32M16SB note 11): CKE low and DQM high while the FPGA I/O is still tri-stated
+    b.r("SDR_CKE", GND, "10k"); b.r("SDR_DQM0", V3, "10k"); b.r("SDR_DQM1", V3, "10k")
     for _ in range(8):
         b.c(V3, GND)
-    b.c(V3, GND, "10u", "Capacitor_SMD:C_0805")
+    b.c(V3, GND, "10u", "Capacitor_SMD:C_0805_2012Metric")
 
 
 # --------------------------------------------------------------- power
 def add_power_cha(b):
-    # 5 V (console) -> 3.3 V and 2.5 V linear, 1.1 V buck
-    b.stock("U", "Regulator_Linear", "AMS1117CD-3.3", "AMS1117-3.3", "Package_TO_SOT_SMD:SOT-223-3_TabPin2",
-            {"1": GND, "2": V3, "3": V5})
-    b.stock("U", "Regulator_Linear", "AMS1117CD-2.5", "AMS1117-2.5", "Package_TO_SOT_SMD:SOT-223-3_TabPin2",
-            {"1": GND, "2": V25, "3": V3})
-    for rail in (V5, V3, V3, V25):
-        b.c(rail, GND, "22u", "Capacitor_SMD:C_1206")
-    # buck 1.1 V: TLV62569 (SOT-23-5: 1 EN, 2 GND, 3 SW, 4 VIN, 5 FB), Vout = 0.6 (1 + R1/R2)
+    # 5 V (console) -> 3.3 V buck (TLV62569, 2 A); 2.5 V (VCCAUX) and 1.1 V (VCC) bucks both fed from the 3.3 V rail,
+    # so VCCIO (3.3 V) always rises before VCCAUX and VCC (TN-02038 sec. 4: VCCIO before or together with them).
+    # A linear 3.3 V from 5 V would dissipate (5 - 3.3) * ~0.7 A = 1.2 W in a SOT-223 (90 C/W).
+    # TLV62569 (SOT-23-5: 1 EN, 2 GND, 3 SW, 4 VIN, 5 FB), Vout = 0.6 (1 + R1/R2); L 2.2 uH, Cout 2 x 22 uF
     sym = custom(b.d, "BUCK_ADJ_SOT23_5", {1: [
         dict(number="4", name="VIN", etype="power_in", side="L"), dict(number="1", name="EN", etype="input", side="L"),
         dict(number="2", name="GND", etype="power_in", side="L"), dict(number="3", name="SW", etype="output", side="R"),
         dict(number="5", name="FB", etype="input", side="R")]})
+    ind = "Inductor_SMD:L_Taiyo-Yuden_NR-40xx"
+    b.add("U", sym, "TLV62569", "Package_TO_SOT_SMD:SOT-23-5", {"4": V5, "1": V5, "2": GND, "3": "BUCK33_SW", "5": "BUCK33_FB"})
+    b.add("L", "Device:L", "2.2uH NRS4018T2R2MDGJV", ind, {"1": "BUCK33_SW", "2": V3})
+    b.r(V3, "BUCK33_FB", "453k")
+    b.r("BUCK33_FB", GND, "100k")              # 0.6 * (1 + 453/100) = 3.32 V
+    b.c(V5, GND, "10u", "Capacitor_SMD:C_0805_2012Metric")
+    for _ in range(2):
+        b.c(V3, GND, "22u", "Capacitor_SMD:C_1206_3216Metric")
     b.add("U", sym, "TLV62569", "Package_TO_SOT_SMD:SOT-23-5", {"4": V3, "1": V3, "2": GND, "3": "BUCK_SW", "5": "BUCK_FB"})
-    b.add("L", "Device:L", "2.2uH", "Inductor_SMD:L_0805_2012Metric", {"1": "BUCK_SW", "2": V1})
+    b.add("L", "Device:L", "2.2uH NRS4018T2R2MDGJV", ind, {"1": "BUCK_SW", "2": V1})
     b.r(V1, "BUCK_FB", "10k")
     b.r("BUCK_FB", GND, "12k")                 # 0.6 * (1 + 10/12) = 1.10 V
     for _ in range(2):
-        b.c(V1, GND, "22u", "Capacitor_SMD:C_1206")
-    b.c(V3, GND, "10u", "Capacitor_SMD:C_0805")
+        b.c(V1, GND, "22u", "Capacitor_SMD:C_1206_3216Metric")
+    b.add("U", sym, "TLV62569", "Package_TO_SOT_SMD:SOT-23-5", {"4": V3, "1": V3, "2": GND, "3": "BUCK25_SW", "5": "BUCK25_FB"})
+    b.add("L", "Device:L", "2.2uH NRS4018T2R2MDGJV", ind, {"1": "BUCK25_SW", "2": V25})
+    b.r(V25, "BUCK25_FB", "316k")
+    b.r("BUCK25_FB", GND, "100k")              # 0.6 * (1 + 316/100) = 2.496 V (VFB 0.588-0.612 V, 1 % resistors)
+    for _ in range(2):
+        b.c(V25, GND, "22u", "Capacitor_SMD:C_1206_3216Metric")
+    b.c(V3, GND, "10u", "Capacitor_SMD:C_0805_2012Metric")
 
 
 # --------------------------------------------------------------- link connector (PROG <-> CHA)
@@ -367,10 +394,13 @@ def link_pin_map(fmt):
     return m
 
 
+LINK_FP_CHA = "NG:Hirose_DF12_DF12C3.0-80DS-0.5V_2x40_P0.50mm_Vertical"           # receptacle, 3.0 mm mated
+LINK_FP_PROG = "Connector_Hirose:Hirose_DF12_DF12E3.0-80DP-0.5V_2x40_P0.50mm_Vertical"   # plug
+
+
 def add_link(b, fmt, side):
     m = link_pin_map(fmt)
-    fp = ("Connector_PinSocket_1.27mm:PinSocket_2x40_P1.27mm_Vertical_SMD" if side == "CHA"
-          else "Connector_PinHeader_1.27mm:PinHeader_2x40_P1.27mm_Vertical_SMD")
+    fp = LINK_FP_CHA if side == "CHA" else LINK_FP_PROG
     for j in (0, 1):
         sym = edge_symbol(b.d, "LINK_2x40", LINK_N)
         b.add("J", sym, f"LINK{j+1}", fp, {str(i): m[j * LINK_N + i] for i in range(1, LINK_N + 1)})
@@ -387,7 +417,7 @@ def build_cha(fmt):
 
     clocks = [s for s in ("24M", "12M", "8M", "68KCLKB") if s in cha_names or s in prog]
     sdr = ([f"SDR_A{i}" for i in range(13)] + ["SDR_BA0", "SDR_BA1"] + [f"SDR_DQ{i}" for i in range(16)] +
-           ["SDR_DQM0", "SDR_DQM1", "SDR_CLK", "SDR_CS0_N", "SDR_CS1_N", "SDR_RAS_N", "SDR_CAS_N", "SDR_WE_N"])
+           ["SDR_DQM0", "SDR_DQM1", "SDR_CKE", "SDR_CLK", "SDR_CS0_N", "SDR_CS1_N", "SDR_RAS_N", "SDR_CAS_N", "SDR_WE_N"])
     dirs = sorted({BIDIR_DIR[s] for s, _ in cha if s in BIDIR_DIR})
     cha_sig = [s for s, _ in cha if s not in clocks]
     groups = [(("PL",), sdr), (("PL",), SPI_NETS + ["MCU_RUN", "MCU_INT"]),
@@ -400,20 +430,36 @@ def build_cha(fmt):
     extra = {}
     # configuration
     extra.update(FPGA_CFG_FIXED)
+    extra["AE3"] = "FLASH_CLK_F"       # MCLK: 33 ohm series resistor near the FPGA (TN-02038 Table 6.2 note 1: 22-80 ohm)
     extra.update({"AF3": "FPGA_INITN", "AB4": "FPGA_PROGRAMN", "AC4": "FPGA_DONE", "AB5": "JTAG_TDO",
                   "AD5": "JTAG_TCK", "AC5": "JTAG_TDI", "AE5": "JTAG_TMS", "AE4": "CFG1", "AD4": "CFG2", "AF4": "CFG0"})
     fp = fpga_part(b, balls, assign, extra)
     fpga_decoupling(b, balls)
-    # config resistors / mode pins (SPI master from flash: CFG[2:0] = 010, to be confirmed in TN-02039)
-    b.r("CFG0", GND, "4.7k"); b.r("CFG1", V3, "4.7k"); b.r("CFG2", GND, "4.7k")
-    for n in ("FPGA_INITN", "FPGA_PROGRAMN", "FPGA_DONE", "OE_CHA_N", "OE_PRG_N", "FLASH_CS_N"):
+    # CFGMDN[2:0] = 010 = Master SPI (TN-02039 Table 4.5/4.6).  Pins have weak internal pull-ups: a 0 needs an
+    # external pull-down < 500 ohm (sec. 4.6.1), a 1 a 4.7k pull-up
+    # TN-02038 Fig. 6.1/6.2: 4.7k pull-ups to VCCIO8 on all three, a 0 ohm strap to GND for the zeros
+    for n in ("CFG0", "CFG1", "CFG2"):
+        b.r(n, V3, "4.7k")
+    b.r("CFG0", GND, "0"); b.r("CFG2", GND, "0")
+    # TN1269 hardware checklist: 4.7k pull-ups to VCCIO8 on INITN/PROGRAMN, JTAG TCK pull-down,
+    # TDI/TMS/TDO pull-ups (values rechecked against TN-02039); flash IO2 (WP) / IO3 (HOLD) held high for x1 mode
+    for n in ("FPGA_INITN", "FPGA_PROGRAMN", "FPGA_DONE", "JTAG_TDI", "JTAG_TMS", "JTAG_TDO"):
+        b.r(n, V3, "4.7k")
+    b.r("JTAG_TCK", GND, "4.7k")
+    # TN-02039 Table 4.5 notes 2, 4, 6 and Table 6.1: CSSPIN 4.7k pull-up, MOSI/MISO 10k pull-ups, MCLK 1k pull-up
+    b.r("FLASH_CLK", V3, "1k"); b.r("FLASH_CLK_F", "FLASH_CLK", "33")
+    b.r("FLASH_DI", V3, "10k"); b.r("FLASH_DO", V3, "10k")
+    for n in ("FLASH_IO2", "FLASH_IO3"):
+        b.r(n, V3, "10k")
+    b.r("FLASH_CS_N", V3, "4.7k")
+    for n in ("OE_CHA_N", "OE_PRG_N"):
         b.r(n, V3, "10k")
     b.r("SPI_CS_N", V3, "10k")
     b.add("D", "Device:LED", "DONE", "LED_SMD:LED_0603_1608Metric", {"1": "LED_K", "2": "LED_A"})
     b.r("LED_A", "FPGA_DONE", "1k"); b.r("LED_K", GND, "0")
     b.add("SW", "Switch:SW_Push", "PROGRAMN", "Button_Switch_SMD:SW_SPST_PTS810", {"1": "FPGA_PROGRAMN", "2": GND})
     jt = b.stock("J", "Connector_Generic", "Conn_02x05_Odd_Even", "JTAG", "Connector_PinHeader_1.27mm:PinHeader_2x05_P1.27mm_Vertical_SMD",
-                 {"1": V3, "2": "JTAG_TMS", "3": GND, "4": "JTAG_TCK", "5": GND, "6": "JTAG_TDO", "8": "JTAG_TDI", "9": GND},
+                 {"1": V3, "2": "JTAG_TMS", "3": GND, "4": "JTAG_TCK", "5": GND, "6": "JTAG_TDO", "8": "JTAG_TDI", "9": GND},   # ARM Cortex Debug 10-pin 1.27 mm (Tigard, J-Link, ...)
                  default=None)
     # SPI flash
     b.stock("U", "Memory_Flash", "W25Q128JVS", "W25Q128JVS", "Package_SO:SOIC-8W_5.3x5.3mm_P1.27mm",
@@ -450,7 +496,7 @@ def build_prog(fmt):
     add_edge(b, fmt, "PROG", lambda sig: {"GND": GND, "VCC": V5}.get(sig, f"X_{sig}" if sig in names else None))
     add_link(b, fmt, "PROG")
     for rail in (V5, V3):
-        b.c(rail, GND, "22u", "Capacitor_SMD:C_1206")
+        b.c(rail, GND, "22u", "Capacitor_SMD:C_1206_3216Metric")
     # microSD
     sd = {"1": "SD_D2", "2": "SD_D3", "3": "SD_CMD", "4": V3, "5": "SD_CLK", "6": GND, "7": "SD_D0", "8": "SD_D1",
           "9": "SD_DET", "10": GND, "11": GND}
@@ -481,7 +527,7 @@ def build_prog(fmt):
     b.stock("J", "Connector_Generic", "Conn_01x03", "SWD", "Connector_PinHeader_1.27mm:PinHeader_1x03_P1.27mm_Vertical",
             {"1": "SWCLK", "2": GND, "3": "SWD"})
     # 12 MHz crystal
-    b.add("Y", "Device:Crystal_GND24", "12MHz", "Crystal:Crystal_SMD_3225-4Pin_3.2x2.5mm",
+    b.add("Y", "Device:Crystal_GND24", "12MHz ABM8-272-T3", "Crystal:Crystal_SMD_3225-4Pin_3.2x2.5mm",
           {"1": "XIN", "2": GND, "3": "XOUT_R", "4": GND})
     b.r("XOUT", "XOUT_R", "1k")
     b.c("XIN", GND, "15p"); b.c("XOUT_R", GND, "15p")

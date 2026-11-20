@@ -59,7 +59,8 @@ dati con le ipotesi sotto. **Non** dimostra che combaci con una console vera.
 
 Scelte di modello non verificate su hardware:
 
-* `CA4 = 0` seleziona i primi 4 byte della riga (la metà a `+0x40` canonico).
+* `CA4 = 0` seleziona i secondi 4 byte della riga (`+0x00` canonico, pixel 8-15) e `CA4 = 1` i
+  primi 4 (`+0x40` canonico, pixel 0-7), secondo il wiki "Sprite graphics format".
 * Ogni tick di `12M` esce una coppia `(gad, gbd)` = (pixel precedente, pixel
   seguente) nell'ordine temporale; `EVEN` non è usato. Su una cartuccia vera
   `EVEN` e `H` decidono quali bit formano la coppia: da controllare.
@@ -130,11 +131,37 @@ diversi: se serve più margine o un clock più basso, il passo successivo è un
 controller con bank interleaving. Resta aperta, come prima, la scadenza reale
 tra `PCK1B` e `LOAD`, che non si ricava da simulazione.
 
+**Verificato sul datasheet AS4C32M16SB (Alliance Memory, gradi -7 / -6):**
+
+* a 133 MHz (7,5 ns) i default del controller sono `TRCD = 3` (22,6 ns, ne servono 21), `TRP = 3`
+  (ne servono 21), `TWR = 2` (ne servono 14), `CL = 3` (tCK minimo 7 ns, quindi 133 MHz sta nel
+  grado -7); `TRC` e `TRFC` erano 8 cicli = 60 ns ma il grado -7 richiede **63 ns**, quindi
+  ora sono 9;
+* il valore del registro di modo `0x032` è CL 3, sequenziale, burst length 4, come dice la
+  tabella del datasheet;
+* l'attesa di accensione deve essere **almeno 200 µs** (non 100 µs come scritto prima): il
+  default di simulazione `INIT_CLKS = 64` resta, il wrapper di scheda deve impostare
+  `SDR_INIT_CLKS` di `ng_top` a 27000 o più a 133 MHz; due cicli di auto-refresh sono il minimo
+  del datasheet e il controller ne emette due;
+* 144 MHz (6,94 ns) è più veloce di quanto consenta il grado -7 (7 ns): richiede il grado -6, i
+  cui valori (tRC 60, tRCD/tRP 18 ns) sono quelli delle righe a 96 e 144 MHz della tabella
+  sopra.
+
 Il controller legge 8 byte per richiesta (burst da 4 beat su 16 bit) perché
 sprite e fix leggono esattamente 8 byte allineati; per P, M e V si usa solo la
 metà o il byte che serve. La scrittura è di una parola da 32 bit per volta
 (`dqm` maschera le altre): ~12 cicli per parola, ampiamente sopra i requisiti
 del caricamento da SD.
+
+## Verifica con la sintesi open source (Yosys + nextpnr-ecp5)
+
+`ng_top` si sintetizza con `yowasp-yosys` (`synth_ecp5`) e si piazza con `yowasp-nextpnr-ecp5 --45k --package
+CABGA554 --speed 8 --out-of-context`: circa 1333 flip-flop, 214 celle di riporto, 128 celle di RAM distribuita e
+una block RAM (dispositivo 45k: 43k LUT4, 108 block RAM), quindi ci sta con ampio margine. **Il timing non chiude
+ancora a 132 MHz**: la Fmax è 122-124 MHz su tre seed (grado -8, il più veloce), attraverso un lungo percorso
+combinatorio dall'arbitro ai registri di richiesta SDRAM (`ng_arb` -> `ng_sdram`). Serve un registro di pipeline su
+quel percorso, oppure un clock SDRAM di 100-120 MHz; la verifica non è una stima di potenza e non modella i clock
+della console. Ha inoltre trovato un bug vero che Icarus non vedeva: `stub_r` in `ng_top.v` aveva due driver (corretto).
 
 ## Come vengono verificati i collegamenti con il firmware
 

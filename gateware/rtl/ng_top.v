@@ -4,7 +4,9 @@
 // real timing are a PCB/constraint matter).  MCU side: a register bus with
 // the map of firmware/ngsd_loader.h and an SDRAM word port for the loader.
 `timescale 1ns/1ps
-module ng_top #(parameter BOOT_HEX = "", parameter MVS = 0) (
+module ng_top #(parameter BOOT_HEX = "", parameter MVS = 0,
+                parameter SDR_INIT_CLKS = 64    // board wrapper: >= 200 us of SDRAM clock (27000 at 133 MHz)
+) (
     input  wire        clk, rst,
     input  wire        tick12,
     // sprites + fix (CHA connector)
@@ -63,6 +65,7 @@ module ng_top #(parameter BOOT_HEX = "", parameter MVS = 0) (
     output wire        sd_ras_n, sd_cas_n, sd_we_n,
     output wire [1:0]  sd_ba,
     output wire [12:0] sd_a,
+    output wire        sd_cke,
     output wire [1:0]  sd_dqm,
     output wire [15:0] sd_dq_o,
     output wire        sd_dq_oe,
@@ -73,6 +76,7 @@ module ng_top #(parameter BOOT_HEX = "", parameter MVS = 0) (
     reg [31:0] mapper, mapper_arg;
     reg [31:0] size [1:6], addr [1:6];
     integer k;
+    wire swap_req;
     always @(posedge clk) begin
         if (rst) begin
             run_r <= 0; stub_r <= 0; mapper <= 0; mapper_arg <= 0;
@@ -88,11 +92,11 @@ module ng_top #(parameter BOOT_HEX = "", parameter MVS = 0) (
                 end
             endcase
         end
+        // 68k: game is ready, switch (single driver of stub_r; wins over a simultaneous register write)
+        if (!rst && swap_req) stub_r <= 1'b0;
     end
     assign run = run_r;
     assign stub = stub_r;
-    wire swap_req;
-    always @(posedge clk) if (swap_req) stub_r <= 1'b0;   // 68k: game is ready, switch
 
     // boot RAM (docs/BOOT.md): regs 0x30 = index, 0x31 = data
     wire [15:0] boot_rdata;
@@ -128,11 +132,11 @@ module ng_top #(parameter BOOT_HEX = "", parameter MVS = 0) (
                .req_valid(rq_valid), .req_we(rq_we), .req_addr(rq_addr),
                .req_wdata(rq_wdata), .req_ready(rq_ready),
                .rsp_valid(rs_valid), .rsp_rdata(rs_rdata));
-    ng_sdram sdr(.clk(clk), .rst(rst), .req_valid(rq_valid), .req_we(rq_we),
+    ng_sdram #(.INIT_CLKS(SDR_INIT_CLKS)) sdr(.clk(clk), .rst(rst), .req_valid(rq_valid), .req_we(rq_we),
                  .req_addr(rq_addr), .req_wdata(rq_wdata), .req_ready(rq_ready),
                  .rsp_valid(rs_valid), .rsp_rdata(rs_rdata),
                  .sd_cs_n(sd_cs_n), .sd_ras_n(sd_ras_n), .sd_cas_n(sd_cas_n),
-                 .sd_we_n(sd_we_n), .sd_ba(sd_ba), .sd_a(sd_a), .sd_dqm(sd_dqm),
+                 .sd_we_n(sd_we_n), .sd_ba(sd_ba), .sd_a(sd_a), .sd_dqm(sd_dqm), .sd_cke(sd_cke),
                  .sd_dq_o(sd_dq_o), .sd_dq_oe(sd_dq_oe), .sd_dq_i(sd_dq_i));
 
     assign cl_req[0] = mcu_req;
