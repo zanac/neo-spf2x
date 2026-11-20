@@ -26,4 +26,10 @@ if [ $# -ge 1 ]; then
     make -s -C "$ROOT/firmware" test PACK="$WORK/real.ngpk" UNPACKED="$WORK/real_unpacked"
 fi
 make -s -C "$ROOT/firmware" clean
+if command -v iverilog >/dev/null 2>&1; then
+    echo "== gateware, sprite fetch/serializer"
+    python3 -I "$ROOT/gateware/tests/test_cfetch.py"
+else
+    echo "== gateware tests skipped (iverilog not installed)"
+fi
 echo "== ALL OK"
