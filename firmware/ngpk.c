@@ -130,6 +130,7 @@ const char *ngpk_strerror(int err)
     case NGPK_E_PROFILE:    return "game does not fit this board";
     case NGPK_E_REGION_CRC: return "ROM data CRC mismatch";
     case NGPK_E_MAPPER:     return "mapper not supported";
+    case NGPK_E_LAYOUT:     return "region layout not supported by this board";
     default:                return "unknown error";
     }
 }

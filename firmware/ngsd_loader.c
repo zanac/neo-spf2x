@@ -9,9 +9,9 @@ const ngsd_profile_t NGSD_PROFILE_64M = {
     .slot = {
         [NGPK_R_P]  = { .base = 0x0000000u, .cap =  8u * MiB },
         [NGPK_R_V]  = { .base = 0x0800000u, .cap = 16u * MiB },
-        [NGPK_R_S]  = { .base = 0x1800000u, .cap =  1u * MiB },
+        [NGPK_R_S]  = { .base = 0x1800000u, .cap =  1u * MiB, .layout = 1 },
         [NGPK_R_M]  = { .base = 0x1900000u, .cap =  1u * MiB },
-        [NGPK_R_C]  = { .base = 0x1A00000u, .cap = 38u * MiB },
+        [NGPK_R_C]  = { .base = 0x1A00000u, .cap = 38u * MiB, .layout = 1 },
         /* NGPK_R_VB: no slot, games with split ADPCM-A/B ROMs are refused */
     },
 };
@@ -28,6 +28,8 @@ static int check_profile(const ngpk_info_t *info, const ngsd_profile_t *prof)
         if (s->base > prof->sdram_bytes ||
             s->cap > prof->sdram_bytes - s->base)
             return NGPK_E_PROFILE;
+        if ((r->flags & 0x0Fu) != s->layout)
+            return NGPK_E_LAYOUT;
     }
     return NGPK_OK;
 }

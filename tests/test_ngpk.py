@@ -11,6 +11,7 @@ import json
 import os
 import random
 import sys
+import tempfile
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -137,6 +138,101 @@ class RealRomset(unittest.TestCase):
     def test_samsho3_fswords(self):
         self.check("samsho3_fswords.json", ["fswords/187-p1k.p1",
                                             "fswords/087-p2.sp2"])
+
+
+# ---- golden models -------------------------------------------------------
+# Reference decode of a canonical (MAME order) tile, written after Geolith's
+# geo_lspc_tpix (BSD-3): screen pixel p (0..15, no flip) of row y.
+def tpix_canonical(c, tile, p, y):
+    base = tile * 128 + (((p & 8) ^ 8) << 3) + (y << 2)
+    x = p & 7
+    v0, v1, v2, v3 = c[base + 0] >> x, c[base + 2] >> x, \
+        c[base + 1] >> x, c[base + 3] >> x
+    return (v0 & 1) | (v1 & 1) << 1 | (v2 & 1) << 2 | (v3 & 1) << 3
+
+
+# What the FPGA does with the sdram1 layout: one 8-byte read per row, the
+# first 4 bytes feed pixels 0-7 (CA4 = 0), the next 4 feed pixels 8-15; byte
+# lane k carries bitplane k.
+def tpix_sdram1(c, tile, p, y):
+    base = tile * 128 + y * 8 + (4 if p & 8 else 0)
+    x = p & 7
+    return sum(((c[base + k] >> x) & 1) << k for k in range(4))
+
+
+def fix_canonical(s, tile, x, row):
+    # Geolith fixline: for p in 0..3 byte f = 0x10,0x18,0x00,0x08; low nibble
+    # is the left pixel of the pair
+    f = (0x10, 0x18, 0x00, 0x08)[x >> 1]
+    b = s[tile * 32 + f + row]
+    return (b >> 4) & 0xF if x & 1 else b & 0xF
+
+
+def fix_sdram1(s, tile, x, row):
+    b = s[tile * 32 + row * 4 + (x >> 1)]
+    return (b >> 4) & 0xF if x & 1 else b & 0xF
+
+
+class TestLayout(unittest.TestCase):
+    def setUp(self):
+        rnd = random.Random(3)
+        self.c = rnd.randbytes(128 * 64)
+        self.s = rnd.randbytes(32 * 64)
+
+    def test_roundtrip(self):
+        self.assertEqual(ngpk.c_from_sdram1(ngpk.c_to_sdram1(self.c)), self.c)
+        self.assertEqual(ngpk.s_from_sdram1(ngpk.s_to_sdram1(self.s)), self.s)
+
+    def test_is_permutation(self):
+        self.assertEqual(sorted(ngpk.c_to_sdram1(self.c)), sorted(self.c))
+        self.assertNotEqual(ngpk.c_to_sdram1(self.c), self.c)
+
+    def test_sprite_pixels_match_golden(self):
+        out = ngpk.c_to_sdram1(self.c)
+        for tile in range(64):
+            for y in range(16):
+                for p in range(16):
+                    self.assertEqual(tpix_sdram1(out, tile, p, y),
+                                     tpix_canonical(self.c, tile, p, y))
+
+    def test_fix_pixels_match_golden(self):
+        out = ngpk.s_to_sdram1(self.s)
+        for tile in range(64):
+            for row in range(8):
+                for x in range(8):
+                    self.assertEqual(fix_sdram1(out, tile, x, row),
+                                     fix_canonical(self.s, tile, x, row))
+
+    def test_bad_sizes(self):
+        with self.assertRaises(ngpk.PackError):
+            ngpk.c_to_sdram1(bytes(100))
+        with self.assertRaises(ngpk.PackError):
+            ngpk.s_to_sdram1(bytes(31))
+
+    def test_pack_flags_and_unpack(self):
+        d = tempfile.mkdtemp()
+        for n, b in (("p", fake_p(1 << 20)), ("c1", self.c[:4096]),
+                     ("c2", self.c[4096:8192]), ("s", self.s)):
+            with open(os.path.join(d, n), "wb") as f:
+                f.write(b)
+        rec = {"title": "t", "regions": {
+            "P": [{"files": ["p"]}],
+            "C": [{"op": "interleave8", "files": ["c1", "c2"]}],
+            "S": [{"files": ["s"]}]}}
+        for layout, fl in (("canonical", 0), ("sdram1", 1)):
+            blob = ngpk.pack(rec, d, layout=layout)
+            hdr, regs = ngpk.parse(blob)
+            by = {r["name"]: r for r in regs}
+            self.assertEqual(by["C"]["flags"], fl)
+            self.assertEqual(by["S"]["flags"], fl)
+            self.assertEqual(by["P"]["flags"], 0)
+            canon = ngpk.to_canonical("C", by["C"]["flags"],
+                                      ngpk.region_data(blob, by["C"]))
+            exp = bytearray(8192)
+            exp[0::2], exp[1::2] = self.c[:4096], self.c[4096:8192]
+            self.assertEqual(canon, bytes(exp))
+        with self.assertRaises(ngpk.PackError):
+            ngpk.pack(rec, d, layout="nope")
 
 
 if __name__ == "__main__":

@@ -126,8 +126,8 @@ static const char *const NAMES[NGPK_R_COUNT] = { "?", "P", "C", "S", "M",
 
 int main(int argc, char **argv)
 {
-    if (argc != 3) {
-        printf("usage: %s game.ngpk unpacked_dir\n", argv[0]);
+    if (argc != 3 && argc != 4) {
+        printf("usage: %s game.ngpk unpacked_dir [canonical.ngpk]\n", argv[0]);
         return 2;
     }
     const char *pack = argv[1], *dir = argv[2];
@@ -227,6 +227,16 @@ int main(int argc, char **argv)
         small.slot[NGPK_R_C].cap = 1u * 1024 * 1024; /* below any test game */
         err = run(pack, &small, 4096, &m, &info);
         CHECK(err == NGPK_E_PROFILE, "got %s", ngpk_strerror(err));
+        CHECK(m.writes == 0 && m.ctrl_writes == 0 && !m.run_written,
+              "hardware touched");
+        free_mock(&m);
+    }
+
+    /* 4b. C/S in canonical layout: the board needs sdram1 ------------------ */
+    if (argc == 4) {
+        printf("wrong layout\n");
+        err = run(argv[3], prof, 4096, &m, &info);
+        CHECK(err == NGPK_E_LAYOUT, "got %s", ngpk_strerror(err));
         CHECK(m.writes == 0 && m.ctrl_writes == 0 && !m.run_written,
               "hardware touched");
         free_mock(&m);

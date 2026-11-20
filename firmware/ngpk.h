@@ -34,7 +34,8 @@ typedef enum {
     NGPK_E_FORMAT      = -5,  /* structurally invalid container            */
     NGPK_E_PROFILE     = -6,  /* game does not fit this cartridge board    */
     NGPK_E_REGION_CRC  = -7,  /* ROM data corrupt (bad SD read / bad file) */
-    NGPK_E_MAPPER      = -8   /* mapper not supported by this firmware     */
+    NGPK_E_MAPPER      = -8,  /* mapper not supported by this firmware     */
+    NGPK_E_LAYOUT      = -9   /* C/S data in a layout the board cannot use */
 } ngpk_err_t;
 
 typedef struct {

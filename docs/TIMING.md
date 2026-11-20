@@ -187,8 +187,11 @@ funzionante, non una misura del connettore. La licenza GPL e i dettagli di
 
 ## 9. Piste per colmare i vuoti
 
-* `loader.cpp` di Main_MiSTer (`support/neogeo/`, secondo le note): contiene la
-  permutazione esatta di C e S al caricamento. È il prossimo file da leggere.
+* Layout di C e S: il nostro `sdram1` (vedi `docs/FORMAT.md`) è una scelta di
+  progetto, verificata solo contro un modello della decodifica di Geolith.
+  `loader.cpp` di Main_MiSTer (`support/neogeo/`) contiene la permutazione che
+  usa MiSTer e non è stato letto: confrontarla sarebbe un controllo
+  indipendente delle ipotesi `CA4` ↔ metà tile e lane ↔ bitplane.
 * La pagina PRO-CT0 del wiki rimanda a un sorgente Verilog di PRO-CT0
   (`Ct0.zip`, di furrtek) e a un suo schema: utili per confrontare il
   serializzatore con `zmc2_dot`. Non sono riuscito a leggerli da qui.

@@ -31,6 +31,7 @@ python3 tools/ngpk.py pack recipes/samsho3.json --base-dir /percorso/romset -o s
 python3 tools/ngpk.py info   samsho3.ngpk    # regioni, dimensioni, CRC
 python3 tools/ngpk.py verify samsho3.ngpk    # ricontrolla i CRC
 python3 tools/ngpk.py unpack samsho3.ngpk -o out/   # P.bin, C.bin, ...
+# unpack --canonical riporta C e S in ordine MAME; pack usa il layout sdram1 (docs/FORMAT.md)
 
 # test (senza ROM usa un gioco sintetico; con una cartella usa anche il romset)
 tests/run_all.sh

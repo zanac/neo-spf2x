@@ -34,9 +34,11 @@ def main(out):
         "C": [{"op": "interleave8", "files": ["c1.bin", "c2.bin"]}],
         "S": [{"files": ["s.bin"]}], "M": [{"files": ["m.bin"]}],
         "V": [{"files": ["v.bin"]}]}}
-    blob = ngpk.pack(recipe, out)
-    with open(os.path.join(out, "synthetic.ngpk"), "wb") as f:
-        f.write(blob)
+    # board layout (what the loader accepts) and the canonical variant
+    for name, layout in (("synthetic.ngpk", "sdram1"),
+                         ("synthetic_canonical.ngpk", "canonical")):
+        with open(os.path.join(out, name), "wb") as f:
+            f.write(ngpk.pack(recipe, out, layout=layout))
 
 
 if __name__ == "__main__":

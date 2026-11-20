@@ -22,6 +22,8 @@ enum {
 typedef struct {
     uint32_t base;               /* SDRAM byte address of the region */
     uint32_t cap;                /* maximum size in bytes, 0 = region unsupported */
+    uint8_t  layout;             /* layout id the gateware expects (low nibble
+                                    of the region flags): 0 canonical, 1 sdram1 */
 } ngsd_slot_t;
 
 typedef struct {

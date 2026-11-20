@@ -116,6 +116,9 @@ Tempi di caricamento stimati (non misurati): per 35 MiB circa 6 s con SPI a
   estratti; prova buffer di 512, 1000, 4096 e 65536 byte; verifica che un bit
   alterato nei dati blocchi `RUN`, che un header alterato o un gioco troppo
   grande non tocchino l'hardware.
+* Layout `sdram1` di C e S: round trip, permutazione, confronto pixel per pixel
+  con un modello di riferimento della decodifica canonica, flag nelle regioni,
+  e rifiuto di un pacchetto canonico da parte del loader (`NGPK_E_LAYOUT`).
 * Come eseguirli: `tests/run_all.sh [cartella_romset]`.
 
 ## 6. Punti aperti (da risolvere prima del PCB)
@@ -135,11 +138,13 @@ Tempi di caricamento stimati (non misurati): per 35 MiB circa 6 s con SPI a
    `PWAIT0/1` e `PDTACK`, candidati per tenere ferma la console: funzione e
    polarità non verificate. L'alternativa è una piccola ROM di avvio servita
    dall'FPGA nel frattempo.
-3. **Layout dei dati C e S in SDRAM.** `docs/TIMING.md` (sezione 8) spiega come
-   l'FPGA compone i pixel e come cattura gli indirizzi dal bus `P`. Il core
-   NeoGeo_MiSTer riordina C e S durante il caricamento, quindi anche il nostro
-   `.ngpk` canonico (ordine MAME) richiede una permutazione definita: da
-   fissare dopo la lettura di `loader.cpp` di Main_MiSTer.
+3. **Layout dei dati C e S in SDRAM: definito, non verificato su hardware.** Il
+   packer produce il layout `sdram1` (vedi `docs/FORMAT.md`), una permutazione
+   per riga di tile, e il loader rifiuta pacchetti con altro layout
+   (`NGPK_E_LAYOUT`). La permutazione è coerente con un modello della
+   decodifica di Geolith (test automatici), ma la corrispondenza `CA4` ↔ metà
+   del tile e byte-lane ↔ bitplane resta un'ipotesi finché il gateware non
+   gira su una console.
 4. **Divisione P1/P2.** Per Samurai Shodown III ho dedotto da un confronto dei
    file che `ep1+ep2` sia P1 (1 MiB) e `ep3+ep4+p5` sia P2 (2 MiB, uguale a
    `sp2` della versione fswords). Va confermato con i dati della scheda.

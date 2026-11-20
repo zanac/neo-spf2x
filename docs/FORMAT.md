@@ -31,7 +31,7 @@ a 512 byte (un settore SD) e riempiti con zeri fino al settore successivo.
 | Off | Dim | Campo    | Note |
 |----:|----:|----------|------|
 | 0   | 1   | type     | 1=P 2=C 3=S 4=M 5=V 6=VB |
-| 1   | 1   | flags    | 0 |
+| 1   | 1   | flags    | bit 0-3: layout dei dati (vedi "Layout delle regioni"); bit 4-7 riservati, 0 |
 | 2   | 2   | riservato| 0 |
 | 4   | 4   | size     | byte di dati reali (senza padding) |
 | 8   | 4   | file_off | offset nel file, multiplo di 512 |
@@ -54,6 +54,37 @@ corretto. Il packer scrive le regioni nell'ordine P, S, M, V, VB, C.
 | **M**   | Codice Z80 (M1), dump grezzo. |
 | **V**   | Campioni ADPCM, file concatenati in ordine (v1, v2, ...). Usata sia da ADPCM-A sia da ADPCM-B. |
 | **VB**  | Solo per giochi con ROM ADPCM-B separata (titoli più vecchi). Il formato la prevede; il profilo 64M non ha uno slot per lei e rifiuta questi giochi. |
+
+## Layout delle regioni (flags, bit 0-3)
+
+Solo C e S hanno un layout alternativo; per le altre regioni il valore è 0.
+
+* `0 = canonical`: ordine MAME, come descritto sopra.
+* `1 = sdram1`: riordino fatto dal packer perché l'FPGA legga una riga di tile
+  con un solo burst sequenziale. È il layout richiesto dal profilo `ngsd-64M`:
+  il loader rifiuta con `NGPK_E_LAYOUT` un pacchetto con layout diverso, senza
+  toccare l'hardware. Il comando `pack` usa `sdram1` per default
+  (`--layout canonical` per l'altro); `unpack --canonical` ripristina l'ordine MAME.
+
+**C, `sdram1`.** Per il tile `t` e la riga `y` (0..15) ci sono 8 byte a
+`t*128 + y*8`: prima i 4 byte della metà a offset canonico `+0x40` (pixel 0-7
+sullo schermo, senza flip, selezionata con `CA4 = 0`), poi i 4 byte della metà
+a `+0x00` (pixel 8-15). Ogni gruppo di 4 byte `[b0 b1 b2 b3]` canonici è
+riordinato in `[b0 b2 b1 b3]`, così che il byte `k` porti il bitplane `k`.
+
+**S, `sdram1`.** Per il tile `t` e la riga `r` (0..7) ci sono 4 byte a
+`t*32 + r*4`, presi dall'ordine canonico agli offset `+0x10+r, +0x18+r,
++0x00+r, +0x08+r`: ogni byte contiene due pixel adiacenti (nibble basso a
+sinistra).
+
+`tests/test_ngpk.py` (`TestLayout`) confronta ogni pixel decodificato dal layout
+`sdram1` con un modello della decodifica canonica scritto seguendo
+`geo_lspc_tpix` e la routine del fix layer di Geolith.
+
+**Ipotesi non verificata su hardware.** La corrispondenza `CA4 = 0` ↔ metà
+`+0x40` e l'assegnazione byte-lane ↔ bitplane sono dedotte dai sorgenti di
+Geolith e NeoGeo_MiSTer, non misurate su una cartuccia. Se il gateware mostrasse
+le metà scambiate basta cambiare una costante nel packer.
 
 Il formato descrive i **dati**; come i byte di C vengano distribuiti sulle linee
 `CR0-CR31` e come vengano usati dal serializzatore è compito del gateware.

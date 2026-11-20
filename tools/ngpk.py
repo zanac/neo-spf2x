@@ -40,6 +40,88 @@ MAPPER_ID = {"plain": 0}
 MAPPER_NAME = {v: k for k, v in MAPPER_ID.items()}
 
 TILE_BYTES = 128  # 16x16 px, 4 bpp (wiki: Sprite graphics format)
+FIX_TILE_BYTES = 32  # 8x8 px, 4 bpp
+
+# Region layouts, stored in the low nibble of the region flags.
+#   canonical: MAME byte order, as the ROM chips would be dumped.
+#   sdram1   : C and S rearranged so the FPGA reads a whole tile line in one
+#              burst (see docs/TIMING.md section 8 and docs/FORMAT.md).
+LAYOUT_ID = {"canonical": 0, "sdram1": 1}
+LAYOUT_NAME = {v: k for k, v in LAYOUT_ID.items()}
+LAYOUT_MASK = 0x0F
+
+_C_SWAP = (0, 2, 1, 3)               # byte j of a canonical row -> position
+_FIX_SLOTS = (0x10, 0x18, 0x00, 0x08)  # byte offsets of a fix line's 4 bytes
+
+
+def c_to_sdram1(data):
+    """Canonical C region -> sdram1 layout.
+
+    For tile t and row y (0..15) the sdram1 layout holds 8 bytes at
+    t*128 + y*8: first the 4 bytes of the half at tile offset +0x40, then the
+    4 bytes of the half at +0x00, each as [b0 b2 b1 b3] so that byte lane k
+    carries bitplane k.  The first half is the one selected by CA4 = 0.
+    """
+    if len(data) % TILE_BYTES:
+        raise PackError("C region size is not a multiple of 128 bytes")
+    out = bytearray(len(data))
+    for y in range(16):
+        for hh in range(2):
+            src_half = 1 - hh
+            for j in range(4):
+                out[y * 8 + hh * 4 + _C_SWAP[j]::TILE_BYTES] = \
+                    data[src_half * 64 + y * 4 + j::TILE_BYTES]
+    return bytes(out)
+
+
+def c_from_sdram1(data):
+    if len(data) % TILE_BYTES:
+        raise PackError("C region size is not a multiple of 128 bytes")
+    out = bytearray(len(data))
+    for y in range(16):
+        for hh in range(2):
+            src_half = 1 - hh
+            for j in range(4):
+                out[src_half * 64 + y * 4 + j::TILE_BYTES] = \
+                    data[y * 8 + hh * 4 + _C_SWAP[j]::TILE_BYTES]
+    return bytes(out)
+
+
+def s_to_sdram1(data):
+    """Canonical S region -> sdram1: line-major, 4 bytes per line in the
+    order [+0x10, +0x18, +0x00, +0x08] (plus the line number)."""
+    if len(data) % FIX_TILE_BYTES:
+        raise PackError("S region size is not a multiple of 32 bytes")
+    out = bytearray(len(data))
+    for r in range(8):
+        for s in range(4):
+            out[r * 4 + s::FIX_TILE_BYTES] = \
+                data[_FIX_SLOTS[s] + r::FIX_TILE_BYTES]
+    return bytes(out)
+
+
+def s_from_sdram1(data):
+    if len(data) % FIX_TILE_BYTES:
+        raise PackError("S region size is not a multiple of 32 bytes")
+    out = bytearray(len(data))
+    for r in range(8):
+        for s in range(4):
+            out[_FIX_SLOTS[s] + r::FIX_TILE_BYTES] = \
+                data[r * 4 + s::FIX_TILE_BYTES]
+    return bytes(out)
+
+
+def to_canonical(name, flags, data):
+    """Undo the layout recorded in a region's flags."""
+    layout = flags & LAYOUT_MASK
+    if layout == LAYOUT_ID["canonical"]:
+        return data
+    if layout == LAYOUT_ID["sdram1"]:
+        if name == "C":
+            return c_from_sdram1(data)
+        if name == "S":
+            return s_from_sdram1(data)
+    raise PackError(f"layout {layout} not valid for region {name}")
 
 
 class PackError(Exception):
@@ -124,13 +206,24 @@ def check_regions(regions, no_check=False):
 
 
 # --------------------------------------------------------------- container
-def pack(recipe, base_dir, no_check=False):
+def pack(recipe, base_dir, no_check=False, layout="canonical"):
+    if layout not in LAYOUT_ID:
+        raise PackError(f"unknown layout '{layout}' "
+                        f"(known: {', '.join(LAYOUT_ID)})")
     mapper = recipe.get("mapper", "plain")
     if mapper not in MAPPER_ID:
         raise PackError(f"unsupported mapper '{mapper}' "
                         f"(known: {', '.join(MAPPER_ID)})")
     regions = build_regions(recipe, base_dir)
     check_regions(regions, no_check)
+
+    flags = {n: 0 for n in regions}
+    if layout == "sdram1":
+        regions["C"] = c_to_sdram1(regions["C"])
+        flags["C"] = LAYOUT_ID["sdram1"]
+        if "S" in regions:
+            regions["S"] = s_to_sdram1(regions["S"])
+            flags["S"] = LAYOUT_ID["sdram1"]
 
     names = [n for n in STORE_ORDER if n in regions]
     table_end = HDR_SIZE + ENT_SIZE * len(names)
@@ -139,8 +232,8 @@ def pack(recipe, base_dir, no_check=False):
     blobs = []
     for n in names:
         data = regions[n]
-        entries.append(struct.pack(ENT_FMT, REGION_ID[n], 0, 0, len(data),
-                                   off, crc32(data), bytes(16)))
+        entries.append(struct.pack(ENT_FMT, REGION_ID[n], flags[n], 0,
+                                   len(data), off, crc32(data), bytes(16)))
         padded = data + bytes(align(len(data)) - len(data))
         blobs.append(padded)
         off += len(padded)
@@ -203,7 +296,8 @@ def cmd_pack(a):
                         recipe.get("base_dir", "."))
     if a.base_dir:
         base = a.base_dir
-    blob = pack(recipe, base, a.no_check)
+    layout = a.layout or recipe.get("layout", "sdram1")
+    blob = pack(recipe, base, a.no_check, layout)
     with open(a.output, "wb") as f:
         f.write(blob)
     print(f"wrote {a.output}: {len(blob)} bytes")
@@ -249,7 +343,10 @@ def cmd_unpack(a):
     for r in regs:
         path = os.path.join(a.output, r["name"] + ".bin")
         with open(path, "wb") as f:
-            f.write(region_data(blob, r))
+            data = region_data(blob, r)
+            if a.canonical:
+                data = to_canonical(r["name"], r["flags"], data)
+            f.write(data)
         print("wrote", path)
 
 
@@ -262,6 +359,8 @@ def main(argv=None):
     p.add_argument("--base-dir", help="override directory holding the ROM files")
     p.add_argument("--no-check", action="store_true",
                    help="skip the NEO-GEO signature check on the P region")
+    p.add_argument("--layout", choices=sorted(LAYOUT_ID),
+                   help="C/S layout (default: recipe value, else sdram1)")
     p.set_defaults(fn=cmd_pack)
     p = sub.add_parser("info")
     p.add_argument("file")
@@ -272,6 +371,8 @@ def main(argv=None):
     p = sub.add_parser("unpack")
     p.add_argument("file")
     p.add_argument("-o", "--output", required=True)
+    p.add_argument("--canonical", action="store_true",
+                   help="undo the C/S layout and write MAME-order data")
     p.set_defaults(fn=cmd_unpack)
     a = ap.parse_args(argv)
     try:
