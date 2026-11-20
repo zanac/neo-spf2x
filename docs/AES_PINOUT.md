@@ -1,36 +1,35 @@
-# Pinout del connettore AES (schede PROG e CHA)
+# AES connector pinout (PROG and CHA boards)
 
-**Fonte:** simboli KiCad del progetto `neogeo-diag-aes-prog` di jwestfall69 e
-della sua libreria `neogeo-diag-kicad-library` (entrambi di pubblico dominio),
-estratti automaticamente dai file `.kicad_sym`: nessuna trascrizione a mano.
-Lati e numeri di pin sono quelli dei simboli di quella libreria.
+**Source:** KiCad symbols of jwestfall69's `neogeo-diag-aes-prog` project and its
+`neogeo-diag-kicad-library` (both public domain), extracted automatically from the
+`.kicad_sym` files: no hand transcription. Sides and pin numbers are those of the
+symbols in that library.
 
-**Stato:** sono nomi di segnale e numeri di pin, **non** una specifica
-elettrica. Mancano direzioni, temporizzazioni e livelli. Prima di mandare in
-produzione un PCB vanno confrontati con una cartuccia AES reale (continuità con
-il multimetro) e con la pagina *Signal names* del wiki neogeodev.
+**Status:** these are signal names and pin numbers, **not** an electrical
+specification. Directions, timings and levels are missing. Before sending a PCB to
+production they must be checked against a real AES cartridge (continuity with a
+multimeter) and against the *Signal names* page of the neogeodev wiki.
 
-Una cartuccia AES è fatta di due schede affiancate, PROG e CHA, ognuna con 50
-contatti per lato (100 per scheda, 200 in tutto, come riportato dal wiki).
-La nostra cartuccia, se vuole stare in un guscio AES, deve presentare entrambi
-i connettori.
+An AES cartridge is made of two boards side by side, PROG and CHA, each with 50
+contacts per side (100 per board, 200 in total, as reported by the wiki). To fit an
+AES shell, our cartridge must present both connectors.
 
-## Geometria dei contatti
+## Contact geometry
 
-Dal footprint `neogeo-aes-a-side-edge`: 50 contatti con passo 2,54 mm, ciascuno
-1,5 × 10 mm. Scheda da 1,6 mm di spessore; il repo suggerisce finitura ENIG e
-contatti dorati con smusso a 45°. La scheda PROG del repo è a due strati di rame.
+From the footprint `neogeo-aes-a-side-edge`: 50 contacts at 2.54 mm pitch, each
+1.5 × 10 mm. Board thickness 1.6 mm; the repo suggests ENIG finish and gold fingers
+with a 45° chamfer. The repo's PROG board has two copper layers.
 
-## Alimentazione e linee comuni
+## Power and shared lines
 
-`VCC` sui pin 25, 26, 27 di entrambi i lati e `GND` sui pin 1, 2, 49, 50.
-`L_OUT/L_IN` e `R_OUT/R_IN` sono i pin 23 e 24 di entrambe le schede (A: L, B: R):
-nel PCB del repo sono sulla stessa rete (`L_AUDIO`, `R_AUDIO`), cioè
-l'audio fa un giro attraverso la cartuccia e va richiuso.
+`VCC` on pins 25, 26, 27 of both sides and `GND` on pins 1, 2, 49, 50.
+`L_OUT/L_IN` and `R_OUT/R_IN` are pins 23 and 24 of both boards (A: L, B: R): in the
+repo's PCB they are on the same net (`L_AUDIO`, `R_AUDIO`), i.e. the audio makes a
+loop through the cartridge and must be closed again.
 
-## Scheda PROG
+## Board PROG
 
-| Pin | Lato A | Lato B |
+| Pin | Side A | Side B |
 |----:|--------|--------|
 | 1 | GND | GND |
 | 2 | GND | GND |
@@ -83,15 +82,14 @@ l'audio fa un giro attraverso la cartuccia e va richiuso.
 | 49 | GND | GND |
 | 50 | GND | GND |
 
-Gruppi: bus dati 68k `D0-D15`, bus indirizzi `A1-A19`, controllo
-(`R/W`, `AS`, `ROMOE`, `ROMOEU/L`, `PORTOEU/L`, `PORTWEU/L`, `PORTADRS`,
-`68KCLKB`, `RESET`), attese (`ROMWAIT`, `PWAIT0/1`, `PDTACK`), bus ADPCM
-(`SDPAD0-7`, `SDPA8-11`, `SDPMPX`, `SDPOE` e `SDRAD0-7`, `SDRA8-9`,
-`SDRA20-23`, `SDRMPX`, `SDROE`) e `4MB`.
+Groups: 68k data bus `D0-D15`, address bus `A1-A19`, control (`R/W`, `AS`, `ROMOE`,
+`ROMOEU/L`, `PORTOEU/L`, `PORTWEU/L`, `PORTADRS`, `68KCLKB`, `RESET`), waits
+(`ROMWAIT`, `PWAIT0/1`, `PDTACK`), ADPCM buses (`SDPAD0-7`, `SDPA8-11`, `SDPMPX`,
+`SDPOE` and `SDRAD0-7`, `SDRA8-9`, `SDRA20-23`, `SDRMPX`, `SDROE`) and `4MB`.
 
-## Scheda CHA
+## Board CHA
 
-| Pin | Lato A | Lato B |
+| Pin | Side A | Side B |
 |----:|--------|--------|
 | 1 | GND | GND |
 | 2 | GND | GND |
@@ -144,22 +142,21 @@ Gruppi: bus dati 68k `D0-D15`, bus indirizzi `A1-A19`, controllo
 | 49 | GND | GND |
 | 50 | GND | GND |
 
-Gruppi: **ingressi di indirizzo** `P0-P23` (divisi tra i due lati: pari lato A,
-dispari lato B) con `CA4`, `PCK1B`, `PCK2B`, `2H1`, `12M`, `LOAD`, `EVEN`, `H`,
-`8M`, `24M`; **uscite pixel** `DOTA`, `DOTB`, `GAD0-3`, `GBD0-3`; **dati fix**
-`FIXD0-7`; **bus Z80** `SDA0-15`, `SDD0-7`, `SDRD0/1`, `SDMRD`, `SDROM`.
-`NC` sono pin non collegati.
+Groups: **address inputs** `P0-P23` (split between the two sides: even on side A,
+odd on side B) with `CA4`, `PCK1B`, `PCK2B`, `2H1`, `12M`, `LOAD`, `EVEN`, `H`,
+`8M`, `24M`; **pixel outputs** `DOTA`, `DOTB`, `GAD0-3`, `GBD0-3`; **fix data**
+`FIXD0-7`; **Z80 bus** `SDA0-15`, `SDD0-7`, `SDRD0/1`, `SDMRD`, `SDROM`.
+`NC` are unconnected pins.
 
-## Cosa implica per il progetto
+## What it implies for the project
 
-* Sulla CHA il connettore AES **non porta i dati delle C ROM** (nei simboli non
-  compare nessun pin `CR`, in linea con il wiki su NEO-ZMC2): porta
-  l'indirizzo del tile (`P0-P23`) e si aspetta indietro i pixel già serializzati
-  (`DOTA/DOTB`, `GAD`, `GBD`) e i dati del fix layer (`FIXD0-7`). Il lavoro del
-  chip PRO-CT0 spetta quindi interamente al nostro FPGA.
-* Il bus Z80 (`SDA`, `SDD`, `SDMRD`, `SDROM`) è sul connettore: la M ROM e il
-  bank switching che fa NEO-ZMC li dobbiamo servire noi.
-* La PROG ha `ROMWAIT`, `PWAIT0/1` e `PDTACK`: sono i candidati per tenere
-  ferma la console durante il caricamento da SD. Funzione e polarità vanno
-  ancora verificate.
-
+* On the CHA the AES connector **does not carry the C ROM data** (no `CR` pin appears
+  in the symbols, in line with the wiki on NEO-ZMC2): it carries the tile address
+  (`P0-P23`) and expects already-serialized pixels back (`DOTA/DOTB`, `GAD`, `GBD`)
+  and the fix layer data (`FIXD0-7`). The work of the PRO-CT0 chip therefore falls
+  entirely on our FPGA.
+* The Z80 bus (`SDA`, `SDD`, `SDMRD`, `SDROM`) is on the connector: we must serve the
+  M ROM and the bank switching that NEO-ZMC does.
+* The PROG has `ROMWAIT`, `PWAIT0/1` and `PDTACK`: these are the candidates to hold
+  the console still while loading from SD. Function and polarity still have to be
+  verified.

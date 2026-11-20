@@ -1,108 +1,103 @@
-# Avvio: come la console vede la cartuccia mentre la SD si carica
+# Boot: how the console sees the cartridge while the SD card loads
 
-Il problema: il BIOS legge la cartuccia subito all'accensione, ma copiare
-decine di MiB dalla microSD alla SDRAM richiede secondi. Questo documento
-separa ciò che è documentato da ciò che è dedotto, e descrive la soluzione
-scelta (implementata e simulata, **non provata su una console**).
+The problem: the BIOS reads the cartridge right at power-on, but copying tens of MiB
+from the microSD to the SDRAM takes seconds. This document separates what is
+documented from what is inferred, and describes the chosen solution (implemented
+and simulated, **not proven on a console**).
 
-## 1. Cosa si sa
+## 1. What is known
 
-**Segnali di attesa (PROG).** `ROMWAIT`, `PWAIT0/1` e `PDTACK` sono pin che la
-cartuccia può pilotare verso la console. Dal modello del core NeoGeo_MiSTer
-(`rtl/io/c1_wait.v`, letto per capire il comportamento, non copiato):
+**Wait signals (PROG).** `ROMWAIT`, `PWAIT0/1` and `PDTACK` are pins the cartridge
+can drive towards the console. From the NeoGeo_MiSTer core's model
+(`rtl/io/c1_wait.v`, read to understand the behaviour, not copied):
 
-* `ROMWAIT` attivo (basso) aggiunge **un numero fisso** di stati di attesa
-  agli accessi alla zona ROM del 68k; `PWAIT0/1` fanno lo stesso (1 o 2 stati,
-  a seconda della combinazione) per la zona porta. L'attesa è contata dal chip
-  della console: non esiste un'attesa a durata arbitraria.
-* `PDTACK` nel modello è commentato, con l'avvertenza che se tenuto a massa
-  "potrebbe bloccare la CPU": il core lo tiene inattivo. La sua funzione reale
-  non è documentata né verificata.
-* In altre parole: **questi pin non servono per tenere ferma la console per
-  secondi**. Servono per aggiungere uno stato di attesa fisso quando la ROM è
-  lenta, ed è quello che ci serve per la P servita dalla SDRAM (il core MiSTer
-  inserisce un wait state anche lui).
+* `ROMWAIT` active (low) adds a **fixed number** of wait states to accesses to the
+  68k's ROM area; `PWAIT0/1` do the same (1 or 2 states, depending on the
+  combination) for the port area. The wait is counted by the console's chip: there
+  is no wait of arbitrary duration.
+* `PDTACK` in the model is commented out, with the warning that if held to ground it
+  "might hang the CPU": the core keeps it inactive. Its real function is neither
+  documented nor verified.
+* In other words: **these pins are not for holding the console still for seconds**.
+  They are for adding a fixed wait state when the ROM is slow, which is what we need
+  for the P served by the SDRAM (the MiSTer core inserts a wait state too).
 
-**Intestazione e BIOS** (wiki neogeodev, pagina *68k program header*): il BIOS
-riconosce la cartuccia dalla stringa `NEO-GEO` a `$100` e da un secondo codice
-(puntatore a `$182`, il "codice di sicurezza"). `$114` dice se il logo lo
-disegna il BIOS (0), il gioco (1) o nessuno (2). `$122` è un `JMP` alla
-subroutine USER, che il BIOS **raggiunge con un salto** e legge la richiesta in
-`BIOS_USER_REQUEST` (`$10FDAE`: 0 init, 1 logo, 2 demo, 3 titolo). La USER deve
-finire con un salto a `SYSTEM_RETURN` (`$C00444`); durante la richiesta 0 gli
-interrupt sono disattivati. Punto di ingresso del BIOS: `$C00402`.
+**Header and BIOS** (neogeodev wiki, *68k program header* page): the BIOS recognizes
+the cartridge by the `NEO-GEO` string at `$100` and by a second code (pointer at
+`$182`, the "security code"). `$114` says whether the logo is drawn by the BIOS (0),
+the game (1) or nobody (2). `$122` is a `JMP` to the USER subroutine, which the BIOS
+**reaches with a jump** and reads the request in `BIOS_USER_REQUEST` (`$10FDAE`: 0
+init, 1 logo, 2 demo, 3 title). The USER must end with a jump to `SYSTEM_RETURN`
+(`$C00444`); during request 0 interrupts are disabled. BIOS entry point: `$C00402`.
 
-**Antecedente.** Esiste in commercio una cartuccia AES con microSD (NeoSD, di
-Stone Age Gamer). Dal suo manuale: al primo avvio la console parte da un menu
-mostrato dalla cartuccia; la scelta di un gioco lo carica nella memoria interna
-e la console **si riavvia** nel gioco; se l'intestazione non viene riconosciuta
-dal BIOS la console mostra una schermata a reticolo (crosshatch). Non conosco
-il suo funzionamento interno, ma conferma che l'approccio "la cartuccia serve
-un programma proprio, poi riavvia la console sul gioco" funziona su AES.
+**Precedent.** A commercial AES cartridge with microSD exists (NeoSD, by Stone Age
+Gamer). From its manual: at first start the console boots into a menu shown by the
+cartridge; choosing a game loads it into the internal memory and the console
+**restarts** into the game; if the header is not recognized by the BIOS the console
+shows a crosshatch screen. I do not know its internals, but it confirms that the
+"the cartridge serves its own program, then restarts the console onto the game"
+approach works on AES.
 
-## 2. Scelta: stub di avvio servito dall'FPGA
+## 2. Choice: boot stub served by the FPGA
 
-1. **Accensione.** L'FPGA serve al 68k un'immagine di avvio da 1 KiB in RAM
-   interna (`ng_boot.v`): all'inizio l'immagine di default scritta nella
-   configurazione, poi quella costruita dall'MCU.
-2. **L'immagine** (`tools/mkstub.py`, `firmware/ngsd_boot.c`) è l'intestazione
-   del gioco stesso (primi 512 byte della P: vettori, `NEO-GEO`, codice di
-   sicurezza), con `$114 = 2` (nessun logo) e il `JMP` di `$122` puntato allo
-   stub a `$200`, più il programma `boot/stub.S` (60 byte) e un flag "pronto" a
-   `$3FE`. Il codice di sicurezza non è nel repo: arriva dal gioco dell'utente.
-3. **Lo stub** (a ogni ingresso in USER): se il flag è 0 salta a `SYSTEM_RETURN`
-   senza fare altro; se è 1 copia una routine di 24 byte nella RAM di lavoro
-   (`$100100`), la esegue, scrive la parola magica `$A5A5` a `$2FFFF0`, imposta
-   lo stack e salta a `$C00402`: il BIOS riparte e questa volta trova il gioco.
-4. **MCU** (`ngsd_load`): imposta `CTRL.STUB`, scrive l'immagine nella boot RAM,
-   copia le regioni in SDRAM con i CRC, programma `SIZE_x`/`ADDR_x`, imposta
-   `CTRL.RUN|STUB` e scrive il flag. Se qualcosa fallisce il flag resta 0 e
-   `RUN` non viene mai impostato: la console resta nello stub (oggi senza
-   messaggio d'errore).
-5. **FPGA** (`ng_pbank.v`): in modalità stub, le letture di P1 sotto 1 KiB
-   vengono dalla boot RAM; il resto, e tutta la finestra banchi, dalla SDRAM.
-   La scrittura `$A5A5` a `$2FFFF0` azzera `STUB` **senza toccare il latch di
-   bank** (verificato in simulazione) e da lì in poi tutta la P viene dalla SDRAM.
+1. **Power-on.** The FPGA serves the 68k a 1 KiB boot image from internal RAM
+   (`ng_boot.v`): at first the default image written in the configuration, then the
+   one built by the MCU.
+2. **The image** (`tools/mkstub.py`, `firmware/ngsd_boot.c`) is the game's own header
+   (first 512 bytes of the P: vectors, `NEO-GEO`, security code), with `$114 = 2` (no
+   logo) and the `JMP` at `$122` pointed to the stub at `$200`, plus the program
+   `boot/stub.S` (60 bytes) and a "ready" flag at `$3FE`. The security code is not in
+   the repo: it comes from the user's game.
+3. **The stub** (on every USER entry): if the flag is 0 it jumps to `SYSTEM_RETURN`
+   doing nothing else; if it is 1 it copies a 24-byte routine into work RAM
+   (`$100100`), runs it, writes the magic word `$A5A5` at `$2FFFF0`, sets the stack
+   and jumps to `$C00402`: the BIOS restarts and this time finds the game.
+4. **MCU** (`ngsd_load`): sets `CTRL.STUB`, writes the image into the boot RAM, copies
+   the regions into SDRAM with the CRCs, programs `SIZE_x`/`ADDR_x`, sets
+   `CTRL.RUN|STUB` and writes the flag. If anything fails the flag stays 0 and `RUN`
+   is never set: the console stays in the stub (today without an error message).
+5. **FPGA** (`ng_pbank.v`): in stub mode, reads of P1 below 1 KiB come from the boot
+   RAM; the rest, and the whole bank window, from the SDRAM. The `$A5A5` write at
+   `$2FFFF0` clears `STUB` **without touching the bank latch** (verified in
+   simulation) and from then on the whole P comes from the SDRAM.
 
-Esiste un'alternativa senza stub (lasciare la console in attesa con un pin):
-scartata per quanto detto sopra sui pin di attesa.
+An alternative without a stub exists (leave the console waiting on a pin): discarded
+for what was said above about the wait pins.
 
-## 3. Cosa è stato verificato
+## 3. What has been verified
 
-* Il programma si assembla (binutils m68k) e il disassemblato corrisponde allo
-  schema sopra; il firmware C e `mkstub.py` producono la stessa immagine
-  (verificato dal test del loader).
-* Simulazione dell'intero percorso: immagine servita dalla boot RAM, flag 0 →
-  1, letture sopra 1 KiB dalla SDRAM durante la modalità stub, scrittura
-  magica, passaggio al gioco, latch di bank mantenuto (`test_system.py`).
-* Il loader controlla che con un errore (profilo, CRC, layout) il flag non
-  venga mai scritto e `RUN` non venga mai impostato.
+* The program assembles (m68k binutils) and the disassembly matches the scheme above;
+  the C firmware and `mkstub.py` produce the same image (checked by the loader test).
+* Simulation of the whole path: image served from the boot RAM, flag 0 → 1, reads
+  above 1 KiB from the SDRAM during stub mode, magic write, switch to the game, bank
+  latch preserved (`test_system.py`).
+* The loader checks that on an error (profile, CRC, layout) the flag is never written
+  and `RUN` is never set.
 
-## 4. Cosa NON è verificato (da provare su hardware o in emulatore)
+## 4. What is NOT verified (to try on hardware or in an emulator)
 
-* Che il BIOS AES richiami USER con continuità finché il flag è 0, e che
-  chiudere ogni chiamata con `SYSTEM_RETURN` non faccia scattare il watchdog.
-* Che il riavvio con `jmp $C00402` da dentro USER (stack reimpostato a
-  `$10F300`, RAM `$100100` usata come trampolino) sia equivalente a un avvio a
-  freddo: stato di LSPC, Z80, backup RAM, registri di sistema. L'alternativa
-  è azionare davvero `RESET` (pin 33 del PROG, direzione non verificata) o una
-  `reset` del 68k.
-* Quanto tempo passa dall'accensione al primo controllo dell'intestazione: se
-  è più breve dell'avvio dell'FPGA (configurazione) la console potrebbe vedere
-  la cartuccia assente. `BOOT_HEX` precarica l'immagine di default nella
-  configurazione ma questo va misurato.
-* Che i giochi con `$114` diverso da 2 e NGH `0` (usato dagli homebrew:
-  `spf2ng` ha `0x0539`) siano accettati dal BIOS: il wiki dice che `0000` è
-  vietato.
-* `ROMWAIT` permanente (1 stato di attesa) per coprire la latenza della SDRAM
-  sulle letture di P: il margine reale è da misurare.
+* That the AES BIOS calls USER continuously while the flag is 0, and that closing
+  every call with `SYSTEM_RETURN` does not trip the watchdog.
+* That the restart with `jmp $C00402` from inside USER (stack reset to `$10F300`, RAM
+  `$100100` used as trampoline) is equivalent to a cold start: state of the LSPC, Z80,
+  backup RAM, system registers. The alternative is to really drive `RESET` (PROG pin
+  33, direction not verified) or a 68k `reset`.
+* How much time passes from power-on to the first header check: if it is shorter than
+  the FPGA start-up (configuration) the console might see the cartridge as absent.
+  `BOOT_HEX` preloads the default image in the configuration but this must be
+  measured.
+* That games with `$114` other than 2 and NGH `0` (used by homebrew: `spf2ng` has
+  `0x0539`) are accepted by the BIOS: the wiki says `0000` is forbidden.
+* A permanent `ROMWAIT` (1 wait state) to cover the SDRAM latency on P reads: the
+  real margin has to be measured.
+* **MVS:** the BIOS and boot flow are different (see `docs/MVS.md`); this stub was
+  designed for the AES.
 
-## 5. Come provarlo senza cartuccia
+## 5. How to try it without a cartridge
 
-`python3 tools/mkstub.py gioco.p1 --swap16 -o boot.bin --ready` produce
-l'immagine con il flag a 1. Il suo effetto su una console vera o in emulatore
-si vede solo se la P viene servita da quella immagine; in un emulatore come
-Geolith (con un BIOS legittimo) si può caricare un P1 da 1 MiB che contiene
-quell'immagine in testa: dovrebbe avviarsi, passare dallo stub e riavviare in
-loop, il che dimostrerebbe il percorso BIOS → USER → trampolino → riavvio fino
-alla scrittura magica (che in emulatore non ha effetto).
+`python3 tools/mkstub.py game.p1 --swap16 -o boot.bin --ready` produces the image with
+the flag at 1. Its effect on a real console or in an emulator is only visible if the P
+is served from that image; in an emulator like Geolith (with a legitimate BIOS) a 1 MiB
+P1 containing that image at the top can be loaded: it should boot, go through the
+stub and restart in a loop, which would prove the path BIOS → USER → trampoline →
+restart up to the magic write (which has no effect in an emulator).

@@ -1,65 +1,65 @@
-# Cartuccia MVS: differenze rispetto all'AES e stato del progetto
+# MVS cartridge: differences from the AES and project status
 
-**Richiesta:** PCB sia per AES sia per MVS. Questo documento riassume cosa cambia
-e cosa è già nel repo. I due formati **non** si possono coprire con un solo
-connettore (geometria e pinout diversi): si fanno due set di schede con la stessa
-logica (FPGA, SDRAM, MCU, microSD, firmware).
+**Request:** PCBs for both AES and MVS. This document summarizes what changes and what is
+already in the repo. The two formats **cannot** be covered with a single connector
+(different geometry and pinout): two sets of boards are made, with the same logic (FPGA,
+SDRAM, MCU, microSD, firmware).
 
-**Fonte dei pinout:** simboli KiCad di `jwestfall69/neogeo-diag-mvs-prog` e
-`neogeo-diag-mvs-cha` (pubblico dominio), estratti con
-`hardware/extract_kicad_pins.py` in `hardware/mvs_pins.csv` (240 pin).
-Il wiki neogeodev ha i pinout MVS solo come immagini; il wiki dà 60 contatti per
-lato, 120 per scheda, passo 2,54 mm, spessore 1,6 mm, e avverte che altrove
-`/ROMOE` e `4MB` sono scambiati: `/ROMOE` è il pin 33 lato B, `4MB` il pin 34 lato B
-(coerente con i simboli estratti). **Come per l'AES: nomi e numeri, non una
-specifica elettrica**; direzioni dedotte dai nomi (`hardware/signals_mvs.csv`).
+**Source of the pinouts:** KiCad symbols of `jwestfall69/neogeo-diag-mvs-prog` and
+`neogeo-diag-mvs-cha` (public domain), extracted with `hardware/extract_kicad_pins.py` into
+`hardware/mvs_pins.csv` (240 pins). The neogeodev wiki has the MVS pinouts only as images;
+the wiki gives 60 contacts per side, 120 per board, 2.54 mm pitch, 1.6 mm thickness, and
+warns that elsewhere `/ROMOE` and `4MB` are swapped: `/ROMOE` is pin 33 on side B, `4MB` is
+pin 34 on side B (consistent with the extracted symbols). **As for the AES: names and
+numbers, not an electrical specification**; directions deduced from the names
+(`hardware/signals_mvs.csv`).
 
-## 1. Differenze che contano
+## 1. Differences that matter
 
-| Aspetto | AES | MVS |
-|---------|-----|-----|
-| Contatti | 50 per lato, 100 per scheda | 60 per lato, 120 per scheda |
-| Segnali console-lato | 162 | **184 pin, 182 segnali** |
-| Dati sprite verso la console | serializzati dalla NEO-ZMC2 in cartuccia: `GAD0-3`, `GBD0-3`, `DOTA`, `DOTB` (+ `LOAD`, `H`, `EVEN`, `12M`) | **paralleli: `CR0-CR31`** (32 bit); il serializzatore è nella console |
-| Clock | `12M` | `24M`, `12M`, `8M` |
-| Selezione slot | – | `SLOTCS` (più cartucce sul fondo comune: le uscite vanno tenute in alta impedenza se `SLOTCS` non è attivo) |
-| Strobe 68k | indirizzi/strobe del bus | `ROMOEU/L`, `PORTOEU/L`, `PORTWEU/L` (byte alto/basso), `PORTADRS`, `AS`, `R/W`; solo `A1-A19` sul connettore |
-| ADPCM | bus multiplexati `SDPAD`/`SDRAD` | stessi bus, con `SDPA8-11`, `SDPMPX`, `SDPOE` e `SDRA8-9`, `SDRA20-23`, `SDRMPX`, `SDROE` |
-| Z80/M ROM | `SDA`, `SDRD0/1`, `SDMRD`, `SDROM` | uguale |
+| Aspect | AES | MVS |
+|--------|-----|-----|
+| Contacts | 50 per side, 100 per board | 60 per side, 120 per board |
+| Console-side signals | 162 | **184 pins, 182 signals** |
+| Sprite data towards the console | serialized by the NEO-ZMC2 in the cartridge: `GAD0-3`, `GBD0-3`, `DOTA`, `DOTB` (+ `LOAD`, `H`, `EVEN`, `12M`) | **parallel: `CR0-CR31`** (32 bits); the serializer is in the console |
+| Clocks | `12M` | `24M`, `12M`, `8M` |
+| Slot selection | – | `SLOTCS` (several cartridges on the common backplane: outputs must be kept high-impedance when `SLOTCS` is not active) |
+| 68k strobes | bus addresses/strobes | `ROMOEU/L`, `PORTOEU/L`, `PORTWEU/L` (high/low byte), `PORTADRS`, `AS`, `R/W`; only `A1-A19` on the connector |
+| ADPCM | multiplexed `SDPAD`/`SDRAD` buses | same buses, with `SDPA8-11`, `SDPMPX`, `SDPOE` and `SDRA8-9`, `SDRA20-23`, `SDRMPX`, `SDROE` |
+| Z80/M ROM | `SDA`, `SDRD0/1`, `SDMRD`, `SDROM` | same |
 
-Sull'MVS il gateware è **più semplice** lato sprite: ci si limita a rispondere con
-32 bit su `CR` all'indirizzo latchato da `PCK1B`, scegliendo la metà con `CA4`.
-Il bus `P0-P23` e `FIXD0-7` sono invariati (il fix usa `PCK2B` e `2H1`).
+On the MVS the gateware is **simpler** on the sprite side: it just answers with 32 bits on
+`CR` to the address latched by `PCK1B`, choosing the half with `CA4`. The `P0-P23` bus and
+`FIXD0-7` are unchanged (the fix uses `PCK2B` and `2H1`).
 
-## 2. Cosa c'è nel repo
+## 2. What is in the repo
 
-* `gateware/rtl/ng_cfetch_mvs.v`: fetch C senza serializzatore, `cr = CA4 ? meta2 : meta1`
-  (stesso layout `sdram1`, nessun cambiamento al formato `.ngpk` né al loader).
-* `gateware/rtl/ng_mvs_pdec.v`: da `ROMOE*/PORTOE*/PORTWE*` + `A1-A19` all'interfaccia
-  indirizzo/strobe di `ng_pbank` (invariato).
-* `ng_top` ha il parametro `MVS` (0 = AES, 1 = MVS) e l'uscita `cr[31:0]`.
-* `gateware/tests/test_mvs.py`: testbench autoverificante (40 righe di tile, due metà,
-  tre accessi 68k) più elaborazione di `ng_top` con `MVS=0/1`. `tests/run_all.sh` → ALL OK.
-* `hardware/signals_mvs.csv`: 184 pin con direzione dedotta.
+* `gateware/rtl/ng_cfetch_mvs.v`: C fetch without the serializer, `cr = CA4 ? half2 :
+  half1` (same `sdram1` layout, no change to the `.ngpk` format or to the loader).
+* `gateware/rtl/ng_mvs_pdec.v`: from `ROMOE*/PORTOE*/PORTWE*` + `A1-A19` to the
+  address/strobe interface of `ng_pbank` (unchanged).
+* `ng_top` has the parameter `MVS` (0 = AES, 1 = MVS) and the output `cr[31:0]`.
+* `gateware/tests/test_mvs.py`: self-checking testbench (40 tile rows, two halves, three
+  68k accesses) plus elaboration of `ng_top` with `MVS=0/1`. `tests/run_all.sh` → ALL OK.
+* `hardware/signals_mvs.csv`: 184 pins with deduced direction.
 
-## 3. Ipotesi **non verificate** specifiche dell'MVS
+## 3. **Unverified** hypotheses specific to the MVS
 
-1. La mappa `ROMOE`/`PORTOE`/`PORTWE` → regioni `$000000` / `$200000` (`ng_mvs_pdec.v`).
-   Il significato esatto di `PORTADRS` non è usato.
-2. Quale metà da 4 byte corrisponde a `CA4 = 0` e l'ordine dei bit su `CR` (stessa
-   ipotesi dell'AES, ancora non provata su hardware).
-3. La scadenza tra `PCK1B` e il campionamento di `CR` da parte della console.
-4. Lo stub di avvio (`docs/BOOT.md`) è stato pensato per l'AES: la logica di boot MVS
-   (BIOS diverso, nessun menu AES) va verificata; `ROMWAIT`/`PWAIT`/`PDTACK` hanno
-   gli stessi nomi.
-5. **Il bus ADPCM MVS non è implementato** (come per l'AES: `v_rd`/`v_offs` generici,
-   manca il collegamento con i multiplexati). Serve per i giochi con parlato.
-6. `RESET` (pin 35 lato B PROG e pin 18 lato B CHA), `4MB` e `SLOTCS`: direzione e uso.
+1. The mapping `ROMOE`/`PORTOE`/`PORTWE` → regions `$000000` / `$200000`
+   (`ng_mvs_pdec.v`). The exact meaning of `PORTADRS` is not used.
+2. Which 4-byte half corresponds to `CA4 = 0` and the bit order on `CR` (same hypothesis as
+   the AES, still unproven on hardware).
+3. The deadline between `PCK1B` and the console sampling `CR`.
+4. The boot stub (`docs/BOOT.md`) was designed for the AES: the MVS boot logic (different
+   BIOS, no AES menu) must be verified; `ROMWAIT`/`PWAIT`/`PDTACK` have the same names.
+5. **The MVS ADPCM bus is not implemented** (as for the AES: generic `v_rd`/`v_offs`, the
+   link with the multiplexed buses is missing). It is needed for games with speech.
+6. `RESET` (pin 35 side B PROG and pin 18 side B CHA), `4MB` and `SLOTCS`: direction and
+   use.
 
-## 4. Effetti su I/O e componenti
+## 4. Effects on I/O and components
 
-182 segnali console + 39 SDRAM + ≥ 6 collegamento MCU (SPI) + ~6 varie
-≈ **233-241**: sull'ECP5 LFE5U-45F caBGA554 (245 I/O) restano al massimo ~12 pin.
-Per l'MVS conviene quindi prevedere la **LFE5U-85F nello stesso caBGA554** (259 I/O,
-stessa impronta): nello stesso PCB si monta l'una o l'altra. Dettagli in
-`docs/COMPONENTS.md` e architettura delle schede in `docs/PCB.md`.
+182 console signals + 39 SDRAM + ≥ 6 MCU link (SPI) + ~6 misc ≈ **233-241**: on the ECP5
+LFE5U-45F caBGA554 (245 I/O) at most ~12 pins are left. For the MVS it is therefore
+advisable to plan the **LFE5U-85F in the same caBGA554** (259 I/O, same footprint): on the
+same PCB one or the other is fitted. Details in `docs/COMPONENTS.md` and board architecture
+in `docs/PCB.md`.

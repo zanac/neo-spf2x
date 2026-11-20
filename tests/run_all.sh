@@ -36,4 +36,6 @@ if command -v iverilog >/dev/null 2>&1; then
 else
     echo "== gateware tests skipped (iverilog not installed)"
 fi
+echo "== documentation EN/IT in step"
+python3 -I "$ROOT/tests/check_docs.py"
 echo "== ALL OK"

@@ -1,199 +1,194 @@
-# Comportamento e temporizzazioni ricavati da Geolith
+# Behaviour and timing derived from Geolith
 
-**Fonti.** Sorgente di Geolith (porta libretro, licenza BSD a tre clausole),
-letto ma non eseguito: `src/geo_lspc.c`, `geo_m68k.c`, `geo_z80.c`, `geo_neo.c`.
-Più la pagina *PRO-CT0* del wiki neogeodev. Il sorgente originale è su GitLab,
-non raggiungibile da qui; la porta libretro ne contiene una copia.
+**Sources.** Geolith source (libretro port, three-clause BSD license), read but not
+run: `src/geo_lspc.c`, `geo_m68k.c`, `geo_z80.c`, `geo_neo.c`. Plus the *PRO-CT0*
+page of the neogeodev wiki. The original source is on GitLab, not reachable from
+here; the libretro port contains a copy.
 
-**Limite importante.** Geolith è un emulatore: riproduce *cosa* viene letto e
-*quando*, a livello di cicli del 68k e di linee di scansione. **Non** riproduce i
-fronti dei segnali sul connettore (`PCK1B`, `LOAD`, `CA4`...). Il wiki, sulla
-pagina PRO-CT0, non ha forme d'onda né conteggi di cicli. Quindi qui sotto c'è
-tutto ciò che serve per decidere *cosa* deve fare il gateware, non ancora
-*con quali ritardi*. L'elenco di ciò che manca è in fondo.
+**Important limit.** Geolith is an emulator: it reproduces *what* is read and
+*when*, at the level of 68k cycles and scanlines. It does **not** reproduce the
+signal edges on the connector (`PCK1B`, `LOAD`, `CA4`...). The wiki, on the PRO-CT0
+page, has no waveforms or cycle counts. So below there is everything needed to decide
+*what* the gateware must do, not yet *with which delays*. The list of what is missing
+is at the bottom.
 
-Ogni punto è marcato: **[Geolith]** lo dice il codice dell'emulatore,
-**[wiki]** la documentazione, **[calcolo]** l'ho derivato io.
+Each point is marked: **[Geolith]** the emulator code says so, **[wiki]** the
+documentation, **[calc]** I derived it.
 
-## 1. Quadro video
+## 1. Video frame
 
-* **[Geolith]** 384 pixel per linea × 264 linee; 768 cicli del 68k per linea.
-* **[calcolo]** Con il 68k a 12 MHz una linea dura 64 µs (15,625 kHz), il pixel
-  clock è 6 MHz (24M/4), un pixel dura 166,7 ns e un frame 16,9 ms (circa
-  59,2 Hz). Quadra con i valori noti della Neo Geo.
+* **[Geolith]** 384 pixels per line × 264 lines; 768 68k cycles per line.
+* **[calc]** With the 68k at 12 MHz a line lasts 64 µs (15.625 kHz), the pixel clock is
+  6 MHz (24M/4), a pixel lasts 166.7 ns and a frame 16.9 ms (about 59.2 Hz). It
+  matches the known Neo Geo values.
 
-## 2. Sprite (C ROM)
+## 2. Sprites (C ROM)
 
-Tutta la logica degli sprite sta **nella console** (LSPC): catena, rimpicciolimento
-tramite la ROM L0, limite di 96 sprite per linea, auto-animazione, flip
-verticale. La cartuccia vede solo l'indirizzo finale e il segnale `H`.
+All the sprite logic is **in the console** (LSPC): chaining, shrinking through the L0
+ROM, the 96-sprites-per-line limit, auto-animation, vertical flip. The cartridge only
+sees the final address and the `H` signal.
 
-* **[Geolith]** Il numero di tile è di 20 bit (16 bit bassi più 4 alti dalla
-  VRAM), il tile occupa 128 byte: indirizzo byte = `tile × 128`.
-* **[MiSTer, sezione 8]** `P0-P23` sono 20 bit di tile più 4 di riga (0-15):
-  ogni indirizzo identifica una riga di 16 pixel. Geolith da solo non lo dice.
-* **[Geolith]** Un tile 16×16 è letto in due metà da 8 pixel, una per valore
-  di `CA4` (il wiki dice che `CA4` seleziona le colonne di blocchi). Senza flip
-  orizzontale: pixel 0-7 dalla metà a `tile + 0x40`, pixel 8-15 dalla metà a
-  `tile + 0x00`; con flip le metà si scambiano e l'ordine dei pixel si inverte.
-  Dentro una metà, la riga `y` sta a `+ 4·y` (4 byte = 32 bit per 8 pixel,
-  coerente con `C0-C31` del wiki).
-* **[Geolith]** Nel layout interleaved che usa anche il nostro `.ngpk`, i 4
-  byte di una riga `b0 b1 b2 b3` danno i bitplane così: piano 0 = `b0`,
-  piano 1 = `b2`, piano 2 = `b1`, piano 3 = `b3`. Cioè i piani 0-1 vengono dal
-  chip dispari (c1), i piani 2-3 dal chip pari (c2): combacia con il wiki.
-* **[Geolith]** Il pixel `x` di una metà usa il bit `x` di ogni byte (il pixel
-  più a sinistra è il bit 0). Con `H` attivo l'ordine si inverte (`x ^ 7`).
-  Flip verticale: la riga diventa `15 - y`. Il valore 0 è trasparente.
-* **[Geolith]** Il numero di tile viene mascherato sulla dimensione della C ROM
-  (`% csz`): su una cartuccia vera gli indirizzi alti "si ripiegano" sulla
-  memoria presente. Il nostro FPGA deve fare lo stesso (tile modulo dimensione C).
-* **[calcolo]** Nel caso peggiore una linea richiede 96 tile × 2 letture da
-  32 bit = 192 letture C; su 64 µs sono circa 333 ns di media per lettura
-  (due pixel clock). È un'ipotesi di budget, non un dato documentato.
+* **[Geolith]** The tile number is 20 bits (low 16 bits plus 4 high from the VRAM), the
+  tile takes 128 bytes: byte address = `tile × 128`.
+* **[MiSTer, section 8]** `P0-P23` are 20 bits of tile plus 4 of row (0-15): each
+  address identifies a row of 16 pixels. Geolith alone does not say so.
+* **[Geolith]** A 16×16 tile is read in two halves of 8 pixels, one per value of `CA4`
+  (the wiki says `CA4` selects the block columns). Without horizontal flip: pixels 0-7
+  from the half at `tile + 0x40`, pixels 8-15 from the half at `tile + 0x00`; with flip
+  the halves swap and the pixel order is reversed. Inside a half, row `y` is at
+  `+ 4·y` (4 bytes = 32 bits for 8 pixels, consistent with the wiki's `C0-C31`).
+* **[Geolith]** In the interleaved layout that our `.ngpk` also uses, the 4 bytes of a
+  row `b0 b1 b2 b3` give the bitplanes like this: plane 0 = `b0`, plane 1 = `b2`,
+  plane 2 = `b1`, plane 3 = `b3`. That is, planes 0-1 come from the odd chip (c1),
+  planes 2-3 from the even chip (c2): it matches the wiki.
+* **[Geolith]** Pixel `x` of a half uses bit `x` of each byte (the leftmost pixel is
+  bit 0). With `H` active the order is reversed (`x ^ 7`). Vertical flip: the row
+  becomes `15 - y`. Value 0 is transparent.
+* **[Geolith]** The tile number is masked to the size of the C ROM (`% csz`): on a real
+  cartridge the high addresses "fold back" onto the memory present. Our FPGA must do
+  the same (tile modulo C size).
+* **[calc]** In the worst case a line requires 96 tiles × 2 32-bit reads = 192 C reads;
+  over 64 µs that is about 333 ns on average per read (two pixel clocks). It is a
+  budget hypothesis, not a documented figure.
 
 ## 3. Fix layer (S ROM)
 
-* **[Geolith]** Tile 8×8 da 32 byte; una riga di 8 pixel sono 4 byte, nelle
-  posizioni `+0x10, +0x18, +0x00, +0x08` più il numero di riga. Ogni byte porta 2
-  pixel: nibble basso a sinistra, alto a destra.
-* Sul connettore la S ROM passa da `FIXD0-7` (8 bit): la cartuccia risponde a un
-  indirizzo portato dal bus `P`, latchato su `PCK2B`: il cablaggio è descritto
-  nella sezione 8 (parola da 16 bit più `S2H1` per scegliere il byte).
-* **[Geolith]** Alcune cartucce commutano banco del fix per linea o per tile
-  (tipi 1 e 2): non sono nel mapper `plain`.
+* **[Geolith]** 8×8 tiles of 32 bytes; a row of 8 pixels is 4 bytes, at positions
+  `+0x10, +0x18, +0x00, +0x08` plus the row number. Each byte carries 2 pixels: low
+  nibble on the left, high on the right.
+* On the connector the S ROM goes through `FIXD0-7` (8 bits): the cartridge answers an
+  address carried by the `P` bus, latched on `PCK2B`: the wiring is described in section
+  8 (16-bit word plus `S2H1` to choose the byte).
+* **[Geolith]** Some cartridges switch the fix bank per line or per tile (types 1 and 2):
+  they are not in the `plain` mapper.
 
 ## 4. P ROM: bank switching
 
-* **[Geolith]** Il 68k vede i primi 1 MiB fissi; la finestra `$200000-$2FFFFF`
-  mostra il banco `n` all'offset `1 MiB × (n + 1)` della P. Il numero scritto è
-  mascherato con (potenza di due successiva al numero di banchi) − 1.
-  È lo stesso schema del nostro `.ngpk` (P1 = primi 1 MiB, poi i banchi).
-* **Discrepanza da sciogliere.** Geolith agisce solo su scritture a indirizzo
-  `>= $2FFFF0`; il wiki descrive il latch che scatta con **qualsiasi** scrittura
-  (word, o byte dispari) nella finestra. Per il gateware conviene seguire
-  l'hardware descritto dal wiki, che è un sovrainsieme.
-* **[Geolith]** Varianti con protezione (SMA, PVC, "ct0", linkable) hanno regole
-  proprie: confermano che vanno in mapper separati.
+* **[Geolith]** The 68k sees the first 1 MiB fixed; the `$200000-$2FFFFF` window shows
+  bank `n` at offset `1 MiB × (n + 1)` of the P. The written number is masked with
+  (next power of two of the number of banks) − 1. It is the same scheme as our `.ngpk`
+  (P1 = first 1 MiB, then the banks).
+* **Discrepancy to resolve.** Geolith only acts on writes at address `>= $2FFFF0`; the
+  wiki describes the latch firing on **any** write (word, or odd byte) in the window. For
+  the gateware it is better to follow the hardware described by the wiki, which is a
+  superset.
+* **[Geolith]** Variants with protection (SMA, PVC, "ct0", linkable) have their own
+  rules: they confirm that they go in separate mappers.
 
-## 5. M ROM e NEO-ZMC (Z80)
+## 5. M ROM and NEO-ZMC (Z80)
 
-* **[Geolith]** Mappa Z80: `0x0000-0x7FFF` fissa (inizio M1); `0x8000-0xBFFF`
-  banco 0 da 16 KiB; `0xC000-0xDFFF` banco 1 da 8 KiB; `0xE000-0xEFFF` banco 2
-  da 4 KiB; `0xF000-0xF7FF` banco 3 da 2 KiB; `0xF800-0xFFFF` RAM di lavoro.
-* **[Geolith]** Il banco si cambia con una **lettura di porta** Z80: porta
-  `0x0B` imposta il banco 0, `0x0A` il banco 1, `0x09` il banco 2, `0x08` il
-  banco 3. Il numero di banco è l'**alto byte dell'indirizzo di porta**
-  (`A15-A8`), mascherato con `0x0F`, `0x1F`, `0x3F`, `0x7F`; l'offset è
-  numero × dimensione del banco. Con queste maschere ogni finestra copre
-  256 KiB: è il limite che Geolith impone alla M1. Il core NeoGeo_MiSTer
-  (sezione 8) usa un bit in più per finestra e arriva a 512 KiB: per il
-  gateware si segue il secondo, che modella il chip vero.
-* **[wiki]** NEO-ZMC ha come ingressi `SDA0, SDA1, SDA8-SDA15` e come uscite gli
-  indirizzi alti della M ROM: coerente con quanto sopra (`SDA0/1` scelgono il
-  banco, `SDA8-15` portano il valore).
-* **[calcolo]** La M1 del gioco `spf2ng` è di 256 KiB: rientra in entrambi i modelli.
-* Quali strobe (`SDRD0`, `SDRD1`...) qualificano la lettura di porta sul
-  connettore va ancora confermato.
+* **[Geolith]** Z80 map: `0x0000-0x7FFF` fixed (start of M1); `0x8000-0xBFFF` 16 KiB
+  bank 0; `0xC000-0xDFFF` 8 KiB bank 1; `0xE000-0xEFFF` 4 KiB bank 2; `0xF000-0xF7FF`
+  2 KiB bank 3; `0xF800-0xFFFF` work RAM.
+* **[Geolith]** The bank is changed with a Z80 **port read**: port `0x0B` sets bank 0,
+  `0x0A` bank 1, `0x09` bank 2, `0x08` bank 3. The bank number is the **high byte of the
+  port address** (`A15-A8`), masked with `0x0F`, `0x1F`, `0x3F`, `0x7F`; the offset is
+  number × bank size. With these masks each window covers 256 KiB: it is the limit
+  Geolith imposes on the M1. The NeoGeo_MiSTer core (section 8) uses one more bit per
+  window and reaches 512 KiB: for the gateware the latter is followed, as it models the
+  real chip.
+* **[wiki]** NEO-ZMC has as inputs `SDA0, SDA1, SDA8-SDA15` and as outputs the high
+  addresses of the M ROM: consistent with the above (`SDA0/1` choose the bank, `SDA8-15`
+  carry the value).
+* **[calc]** The M1 of the `spf2ng` game is 256 KiB: it fits both models.
+* Which strobes (`SDRD0`, `SDRD1`...) qualify the port read on the connector remains to
+  be confirmed.
 
-## 6. Formato `.neo` (spunto, non ancora usato)
+## 6. `.neo` format (a hint, not used yet)
 
-Geolith carica solo `.NEO` (TerraOnion): header di 4096 byte (`'N' 'E' 'O' 1`,
-dimensioni P, S, M1, V1, V2, C come interi a 32 bit little-endian, poi anno,
-genere, NGH, nome, produttore), dati dopo l'header. Un importatore
-`.neo → .ngpk` è fattibile; non l'ho scritto perché non ho un file `.neo` con
-cui verificarlo.
+Geolith only loads `.NEO` (TerraOnion): 4096-byte header (`'N' 'E' 'O' 1`, sizes of P, S,
+M1, V1, V2, C as 32-bit little-endian integers, then year, genre, NGH, name,
+manufacturer), data after the header. A `.neo → .ngpk` importer is feasible; I have not
+written it because I have no `.neo` file to verify it with.
 
-## 7. Cosa NON si ricava da qui
+## 7. What can NOT be derived from here
 
-Aggiornato dopo la lettura del core NeoGeo_MiSTer (sezione 8): i punti sul
-significato di `P0-P23`, sul cablaggio verso S e C ROM e sulla produzione di
-`DOTA/DOTB/GAD/GBD` sono stati risolti lì. Restano aperti:
+Updated after reading the NeoGeo_MiSTer core (section 8): the points on the meaning of
+`P0-P23`, on the wiring towards the S and C ROMs and on the production of
+`DOTA/DOTB/GAD/GBD` were resolved there. Still open:
 
-1. Tempi sul connettore **in nanosecondi**: setup e hold di `PCK1B`, `PCK2B`,
-   `LOAD`, `CA4`, `EVEN`, `H`, `2H1` rispetto a `12M`, `24M`, `8M`. Il core
-   MiSTer lavora a 48 MHz con clock enable, quindi dà l'ordine degli eventi,
-   non i margini analogici.
-2. Il fronte esatto del `12M` che campiona `CR` (il core usa un enable
-   chiamato "12M_N", le note parlano di fronte di salita): polarità da verificare.
-3. Bus ADPCM: multiplexing `SDPMPX`/`SDRMPX` e tempi.
-4. Semantica di `PDTACK`, `ROMWAIT`, `PWAIT0/1` (per tenere ferma la console).
-5. Il wiki scrive "sotto 250 ns (7 mclk)" per la C ROM: 7 periodi di un clock a
-   24 MHz sono 292 ns, 250 ns sono 6. Non so quale dei due sia il dato giusto.
+1. Connector timings **in nanoseconds**: setup and hold of `PCK1B`, `PCK2B`, `LOAD`,
+   `CA4`, `EVEN`, `H`, `2H1` with respect to `12M`, `24M`, `8M`. The MiSTer core works at
+   48 MHz with clock enables, so it gives the order of events, not the analog margins.
+2. The exact `12M` edge that samples `CR` (the core uses an enable called "12M_N", the
+   notes speak of a rising edge): polarity to verify.
+3. ADPCM bus: `SDPMPX`/`SDRMPX` multiplexing and timing.
+4. Semantics of `PDTACK`, `ROMWAIT`, `PWAIT0/1` (for holding the console still).
+5. The wiki writes "under 250 ns (7 mclk)" for the C ROM: 7 periods of a 24 MHz clock are
+   292 ns, 250 ns are 6. I do not know which of the two is the right figure.
 
-## 8. Dal core NeoGeo_MiSTer (furrtek e altri)
+## 8. From the NeoGeo_MiSTer core (furrtek and others)
 
-**Fonte.** `github.com/MiSTer-devel/NeoGeo_MiSTer`: implementazione FPGA completa
-della Neo Geo, con i chip separati in moduli (`rtl/video/zmc2_dot.v`,
-`rtl/io/zmc.v`, `rtl/video/neo_273.v`, `rtl/video/lspc2_clk.v`) e un file di
-appunti dell'autore (`DEV_NOTES.md`). **Licenza GPL** (file `LICENSE` v2, alcune
-intestazioni v3 o successiva). L'ho letto per capire il comportamento e questa
-sezione è scritta con parole mie; **non ho copiato codice**. Se in futuro il
-nostro gateware dovesse riusare codice di quel core, erediterebbe la GPL: va
-deciso prima.
+**Source.** `github.com/MiSTer-devel/NeoGeo_MiSTer`: a complete FPGA implementation of
+the Neo Geo, with the chips split into modules (`rtl/video/zmc2_dot.v`, `rtl/io/zmc.v`,
+`rtl/video/neo_273.v`, `rtl/video/lspc2_clk.v`) and a notes file by the author
+(`DEV_NOTES.md`). **GPL license** (`LICENSE` file v2, some headers v3 or later). I read
+it to understand the behaviour and this section is written in my own words; **I did not
+copy code**. If our gateware ever reuses code from that core, it would inherit the GPL:
+this must be decided beforehand.
 
-**[MiSTer] Clock.** Master 24 MHz; `12M`, `6M`, `3M`, `1.5M` sono divisioni per
-2, 4, 8, 16; `8M` è 24M/3 e `4M` è 24M/6.
+**[MiSTer] Clocks.** Master 24 MHz; `12M`, `6M`, `3M`, `1.5M` are divisions by 2, 4, 8,
+16; `8M` is 24M/3 and `4M` is 24M/6.
 
-**[MiSTer] Serializzatore (zmc2_dot).** Registro a scorrimento da 32 bit
-caricato da `CR` quando `LOAD` è attivo, su un tick del `12M`; poi ad ogni tick
-fa scorrere di **due pixel** (le quattro corsie da un byte avanzano di 2 bit),
-nella direzione scelta da `H`. In uscita ci sono due pixel alla volta, `GAD`
-(pixel A) e `GBD` (pixel B), da 4 bit ciascuno; `EVEN` e `H` scelgono quali bit
-formano la coppia (parità di X e direzione). `DOTA` e `DOTB` valgono 1 se il
-pixel è diverso da 0, cioè non trasparente.
-**[calcolo]** 8 pixel = 4 tick da 83,3 ns = 333 ns per ogni lettura `CR` da
-32 bit. Coincide con la stima di budget della sezione 2.
+**[MiSTer] Serializer (zmc2_dot).** A 32-bit shift register loaded from `CR` when `LOAD`
+is active, on a `12M` tick; then at every tick it shifts by **two pixels** (the four
+one-byte lanes advance by 2 bits), in the direction chosen by `H`. The output is two
+pixels at a time, `GAD` (pixel A) and `GBD` (pixel B), 4 bits each; `EVEN` and `H` choose
+which bits form the pair (parity of X and direction). `DOTA` and `DOTB` are 1 if the pixel
+is non-zero, i.e. not transparent.
+**[calc]** 8 pixels = 4 ticks of 83.3 ns = 333 ns for every 32-bit `CR` read. It matches
+the budget estimate in section 2.
 
-**[MiSTer] Indirizzi sul bus P.** Il bus `P` è multiplexato: la cartuccia
-cattura valori diversi su due fronti.
-* Su `PCK1B` (sprite): `PBUS[15:0]` sono i 16 bit bassi del numero di tile,
-  `PBUS[19:16]` la riga del tile (0-15), `PBUS[23:20]` i 4 bit alti del tile.
-  In pratica `P0-P23` = tile (20 bit) + riga (4 bit), e ogni indirizzo
-  identifica 8 byte, cioè una riga di 16 pixel (64 bit); `CA4` sceglie la
-  metà da 32 bit mandata al serializzatore.
-* Su `PCK2B` (fix): `PBUS[11:0]` sono il numero di tile e `PBUS[15:12]` quattro
-  bit di posizione nel tile; insieme formano un indirizzo di parola a 16 bit
-  (128 KiB di S ROM), e `S2H1` sceglie il byte alto o basso per `FIXD0-7`.
+**[MiSTer] Addresses on the P bus.** The `P` bus is multiplexed: the cartridge captures
+different values on two edges.
+* On `PCK1B` (sprites): `PBUS[15:0]` are the low 16 bits of the tile number,
+  `PBUS[19:16]` the tile row (0-15), `PBUS[23:20]` the high 4 bits of the tile. In
+  practice `P0-P23` = tile (20 bits) + row (4 bits), and each address identifies 8 bytes,
+  i.e. a row of 16 pixels (64 bits); `CA4` chooses the 32-bit half sent to the serializer.
+* On `PCK2B` (fix): `PBUS[11:0]` are the tile number and `PBUS[15:12]` four position bits
+  in the tile; together they form a 16-bit word address (128 KiB of S ROM), and `S2H1`
+  chooses the high or low byte for `FIXD0-7`.
 
-**[MiSTer] Innesco delle letture** (da `DEV_NOTES.md`): la lettura C parte
-quando `PCK1B` sale, quella S quando `PCK2B` sale, il bus 68k quando `nROMOE`
-o `nPORTOE` scendono. Il core del file usa SDRAM a 120 MHz (5 × 24M, fino a
-144 MHz) e deve inserire **un wait state** sul 68k. Per noi vuol dire che la
-latenza della SDRAM conta e che i segnali di attesa della PROG (`ROMWAIT`,
-`PWAIT0/1`, `PDTACK`) vanno capiti davvero.
+**[MiSTer] Read triggers** (from `DEV_NOTES.md`): the C read starts when `PCK1B` rises, the
+S read when `PCK2B` rises, the 68k bus when `nROMOE` or `nPORTOE` fall. The core described
+in the file uses 120 MHz SDRAM (5 × 24M, up to 144 MHz) and must insert **one wait state**
+on the 68k. For us it means that the SDRAM latency matters and that the PROG wait signals
+(`ROMWAIT`, `PWAIT0/1`, `PDTACK`) must be truly understood.
 
-**[MiSTer] Riorganizzazione al caricamento.** Il core non tiene i dati nell'ordine
-dei file: li riordina mentre li carica. Per il fix mette adiacenti le coppie di
-pixel in modo che una sola lettura da 16 bit serva 4 pixel; per gli sprite
-dispone i byte in modo che una riga di 16 pixel (64 bit) siano quattro parole
-da 16 bit consecutive, leggibili in burst, con `CA4` che sceglie la metà.
-Questo conferma la scelta di un loader che prepara i dati, ma significa che **il
-layout canonico del `.ngpk` non è quello che l'FPGA leggerà**: serve una
-permutazione definita (nel packer, nel loader o nella scrittura verso la SDRAM).
-Il dettaglio esatto sta nel loader del software di MiSTer
-(`support/neogeo/loader.cpp` secondo le note), che non ho ancora letto.
+**[MiSTer] Reorganization at load time.** The core does not keep the data in file order: it
+reorders it while loading. For the fix it puts pairs of pixels adjacent so that a single
+16-bit read serves 4 pixels; for sprites it arranges the bytes so that a row of 16 pixels
+(64 bits) is four consecutive 16-bit words, readable in a burst, with `CA4` choosing the
+half. This confirms the choice of a loader that prepares the data, but it means **the
+canonical `.ngpk` layout is not what the FPGA will read**: a defined permutation is needed
+(in the packer, in the loader or in the write towards the SDRAM). The exact detail is in
+the loader of the MiSTer software (`support/neogeo/loader.cpp` according to the notes),
+which I have not read yet.
 
-**[MiSTer] NEO-ZMC (Z80).** Quattro registri di finestra, uno per ogni
-dimensione (2, 4, 8, 16 KiB), che all'azzeramento puntano alla stessa zona di
-indirizzi (finestre "identità"). Sul fronte di salita di `SDRD0` si latcha il
-valore presente su `SDA15-SDA8`, e `SDA1-SDA0` scelgono la finestra. L'uscita
-`MA[18:11]` è l'indirizzo alto della M ROM: sotto `0x8000` passa l'indirizzo
-così com'è. Gli indirizzi sono quindi fino a 19 bit (512 KiB).
+**[MiSTer] NEO-ZMC (Z80).** Four window registers, one per size (2, 4, 8, 16 KiB), which
+at reset point to the same address area ("identity" windows). On the rising edge of
+`SDRD0` the value present on `SDA15-SDA8` is latched, and `SDA1-SDA0` choose the window.
+The `MA[18:11]` output is the high address of the M ROM: below `0x8000` the address passes
+through as it is. The addresses are therefore up to 19 bits (512 KiB).
 
-**Limiti di questa fonte.** Il core è un modello a livello di registro
-funzionante, non una misura del connettore. La licenza GPL e i dettagli di
-`loader.cpp` sono i due punti da chiudere prima di scrivere il gateware.
+**Limits of this source.** The core is a working register-level model, not a measurement
+of the connector. The GPL license and the details of `loader.cpp` are the two points to
+close before writing the gateware.
 
-## 9. Piste per colmare i vuoti
+## 9. Leads to fill the gaps
 
-* Layout di C e S: il nostro `sdram1` (vedi `docs/FORMAT.md`) è una scelta di
-  progetto, verificata solo contro un modello della decodifica di Geolith.
-  `loader.cpp` di Main_MiSTer (`support/neogeo/`) contiene la permutazione che
-  usa MiSTer e non è stato letto: confrontarla sarebbe un controllo
-  indipendente delle ipotesi `CA4` ↔ metà tile e lane ↔ bitplane.
-* La pagina PRO-CT0 del wiki rimanda a un sorgente Verilog di PRO-CT0
-  (`Ct0.zip`, di furrtek) e a un suo schema: utili per confrontare il
-  serializzatore con `zmc2_dot`. Non sono riuscito a leggerli da qui.
-* Misure con analizzatore logico su una console con una cartuccia vera, per i
-  margini in nanosecondi.
+* C and S layout: our `sdram1` (see `docs/FORMAT.md`) is a design choice, verified only
+  against a model of Geolith's decoding. Main_MiSTer's `loader.cpp` (`support/neogeo/`)
+  contains the permutation MiSTer uses and has not been read: comparing it would be an
+  independent check of the `CA4` ↔ tile half and lane ↔ bitplane hypotheses.
+* The PRO-CT0 page of the wiki points to a PRO-CT0 Verilog source (`Ct0.zip`, by furrtek)
+  and to its schematic: useful to compare the serializer with `zmc2_dot`. I could not read
+  them from here.
+* Measurements with a logic analyzer on a console with a real cartridge, for the margins
+  in nanoseconds.
+
+## 10. MVS note
+
+The MVS connector gives the console-side serializer parallel `CR0-CR31` data and the
+three clocks `24M`, `12M`, `8M`; see `docs/MVS.md`. Everything in sections 2-5 about *what*
+is read applies unchanged; section 8's serializer is not needed on the cartridge.

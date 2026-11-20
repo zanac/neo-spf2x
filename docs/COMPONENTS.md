@@ -1,97 +1,94 @@
-# Scelta dei componenti (proposta, da confermare)
+# Component choice (proposal, to be confirmed)
 
-**Correzione a una mia proposta precedente.** Avevo suggerito un Cyclone 10 LP
-con SDRAM da 64 MiB. Contando i segnali veri del connettore (`hardware/gen_signals.py`
-da `docs/AES_PINOUT.md`) quella scelta non regge: i **segnali lato console sono
-162**, e il numero di I/O utili dell'FPGA sale a circa 220.
+**Correction to an earlier proposal of mine.** I had suggested a Cyclone 10 LP with 64 MiB
+SDRAM. Counting the real connector signals (`hardware/gen_signals.py` from
+`docs/AES_PINOUT.md`) that choice does not hold: the **console-side signals are 162**, and
+the number of useful FPGA I/Os rises to about 220.
 
-## 1. Budget di I/O
+## 1. I/O budget
 
-| Voce | Pin FPGA |
-|------|---------:|
-| Segnali console (PROG 82 + CHA 80, esclusi alimentazione e audio) | 162 |
-| SDRAM 16 bit (16 DQ, 13 A, 2 BA, CKE, CS, RAS, CAS, WE, 2 DQM, clock) | 39 |
-| Collegamento MCU (bus a 8 bit + strobe, o SPI/QSPI) | ~12 |
-| Direzione dei traslatori, LED, pulsante, varie | ~8 |
-| **Totale** | **~221** |
+| Item | FPGA pins |
+|------|----------:|
+| Console signals (PROG 82 + CHA 80, power and audio excluded) | 162 |
+| 16-bit SDRAM (16 DQ, 13 A, 2 BA, CKE, CS, RAS, CAS, WE, 2 DQM, clock) | 39 |
+| MCU link (8-bit bus + strobes, or SPI/QSPI) | ~12 |
+| Translator direction, LED, button, misc | ~8 |
+| **Total** | **~221** |
 
-Dei 162 segnali, per nome: 99 ingressi (indirizzi, strobe, clock, bit di banco),
-22 uscite (pixel, fix, linee di attesa), 40 bidirezionali (`D0-D15`, `SDD0-7`,
-bus ADPCM multiplexati `SDPAD`/`SDRAD`), 1 incerto (`4MB`). **Le direzioni sono
-dedotte dai nomi**, non verificate (colonna `basis` di `hardware/signals.csv`).
+Of the 162 signals, by name: 99 inputs (addresses, strobes, clocks, bank bits), 22 outputs
+(pixel, fix, wait lines), 40 bidirectional (`D0-D15`, `SDD0-7`, multiplexed ADPCM buses
+`SDPAD`/`SDRAD`), 1 uncertain (`4MB`). **Directions are deduced from the names**, not
+verified (`basis` column of `hardware/signals.csv`).
 
-### Budget MVS
+### MVS budget
 
-L'MVS ha **182 segnali** (`docs/MVS.md`): 182 + 39 + ~12 + ~8 ≈ **241** con il bus MCU
-parallelo, ≈ 233 con un link SPI. Sul 45F caBGA554 (245 I/O) restano pochi pin:
-per l'MVS si prevede la **LFE5U-85F nello stesso caBGA554** (259 I/O).
+The MVS has **182 signals** (`docs/MVS.md`): 182 + 39 + ~12 + ~8 ≈ **241** with the
+parallel MCU bus, ≈ 233 with an SPI link. On the 45F caBGA554 (245 I/O) very few pins are
+left: for the MVS the **LFE5U-85F in the same caBGA554** (259 I/O) is planned.
 
 ## 2. FPGA
 
-Dati dai siti dei costruttori (consultati oggi):
+Data from the manufacturers' sites (consulted today):
 
-| Famiglia / dispositivo | Pacchetto | I/O utente | Basta (≥ ~230 con margine)? |
-|------------------------|-----------|-----------:|-----------------------------|
+| Family / device | Package | User I/O | Enough (≥ ~230 with margin)? |
+|-----------------|---------|---------:|------------------------------|
 | Cyclone 10 LP 10CL016/025 | UBGA-256 | 162 / 150 | no |
 | Cyclone 10 LP 10CL010 | UBGA-256 | 176 | no |
 | ECP5 LFE5U-25F / 45F | caBGA256 | 197 | no |
 | ECP5 LFE5U-45F | caBGA381 | 203 | no |
-| **ECP5 LFE5U-45F** | **caBGA554 (23×23 mm)** | **245** | **sì** |
-| ECP5 LFE5U-85F | caBGA554 | 259 | sì (più grande del necessario) |
-| Cyclone 10 LP 10CL025/040 | UBGA-484 | 325 | sì |
+| **ECP5 LFE5U-45F** | **caBGA554 (23×23 mm)** | **245** | **yes** |
+| ECP5 LFE5U-85F | caBGA554 | 259 | yes (larger than needed) |
+| Cyclone 10 LP 10CL025/040 | UBGA-484 | 325 | yes |
 
-**Proposta: Lattice ECP5 LFE5U-45F in caBGA554.** Supporta I/O LVCMOS a 3,3 V,
-è sufficiente come logica (44 k LUT contro le poche migliaia del gateware
-attuale) e ha una toolchain aperta (Yosys + nextpnr-ecp5 + openFPGALoader), in
-linea con il resto del progetto: **che nextpnr-ecp5 supporti proprio questo
-pacchetto è da verificare** prima di ordinare. L'alternativa è un Cyclone 10 LP
-10CL025 in UBGA-484 con Quartus Lite. In entrambi i casi serve un BGA, quindi
-PCB a più strati e assemblaggio in fabbrica.
+**Proposal: Lattice ECP5 LFE5U-45F in caBGA554.** It supports 3.3 V LVCMOS I/O, is enough
+as logic (44 k LUT against the few thousand of the current gateware) and has an open
+toolchain (Yosys + nextpnr-ecp5 + openFPGALoader), in line with the rest of the project:
+**whether nextpnr-ecp5 supports this exact package is to be verified** before ordering. The
+alternative is a Cyclone 10 LP 10CL025 in UBGA-484 with Quartus Lite. In both cases a BGA is
+needed, hence a multi-layer PCB and factory assembly.
 
-Il gateware esistente è Verilog generico: non cambia con la famiglia (cambiano
-PLL, vincoli e SDRAM I/O).
+The existing gateware is generic Verilog: it does not change with the family (PLL,
+constraints and SDRAM I/O change).
 
-## 3. Memoria e MCU
+## 3. Memory and MCU
 
-* **SDRAM:** 512 Mbit (64 MiB) × 16, SDR, in classe 143-166 MHz (grade -6/-7).
-  Famiglie compatibili da controllare per disponibilità: ISSI IS42S16320,
-  Alliance AS4C32M16SB, Micron MT48LC32M16A2. Il controller attuale richiede
-  ≥ ~133-144 MHz (`docs/GATEWARE.md`).
-* **MCU:** RP2040. Il suo PIO può pilotare la microSD a 4 bit e un bus parallelo
-  a 8 bit verso l'FPGA; il loader C (`firmware/`) non cambia. L'alternativa è
-  uno STM32 con SDMMC. Stima di tempi di caricamento (non misurata): SD a 4 bit
-  circa 10-20 MB/s, quindi 3-5 s per 45 MiB.
-* **Configurazione FPGA:** flash SPI NOR dedicata (non quella dell'MCU).
+* **SDRAM:** 512 Mbit (64 MiB) × 16, SDR, 143-166 MHz class (grade -6/-7). Compatible
+  families to check for availability: ISSI IS42S16320, Alliance AS4C32M16SB, Micron
+  MT48LC32M16A2. The current controller needs ≥ ~133-144 MHz (`docs/GATEWARE.md`).
+* **MCU:** RP2040. Its PIO can drive the 4-bit microSD and an 8-bit parallel bus towards
+  the FPGA; the C loader (`firmware/`) does not change. The alternative is an STM32 with
+  SDMMC. Estimated load time (not measured): 4-bit SD about 10-20 MB/s, so 3-5 s for
+  45 MiB.
+* **FPGA configuration:** dedicated SPI NOR flash (not the MCU's).
 
-## 4. Traslatori di livello 5 V ↔ 3,3 V
+## 4. 5 V ↔ 3.3 V level translators
 
-Servono per tutti i 162 segnali (l'FPGA non è tollerante a 5 V). Famiglia
-proposta: traslatori a doppia alimentazione a 16 bit (classe `74LVC16T245`,
-TSSOP-48): lato FPGA 3,3 V, lato console 5 V, pin DIR pilotato dall'FPGA per i
-40 bidirezionali (circa 5 pin DIR), fisso per ingressi e uscite. Con 22 gruppi
-da 8 bit sono circa **11 componenti**. Ritardo di propagazione dell'ordine di
-qualche ns per tratta: da mettere nel budget di temporizzazione dopo le misure
-sulla console.
+Needed for all console signals (the FPGA is not 5 V tolerant). Proposed family: 16-bit
+dual-supply translators (`74LVC16T245` class, TSSOP-48): FPGA side 3.3 V, console side 5 V,
+DIR pin driven by the FPGA for the 40 bidirectional ones (about 5 DIR pins), fixed for inputs
+and outputs. With 22 groups of 8 bits that is about **11 parts** (AES; about 12 for the
+MVS). Propagation delay of the order of a few ns per hop: to be put in the timing budget
+after measurements on the console.
 
-## 5. Alimentazione (stima, non verificata)
+## 5. Power (estimate, not verified)
 
-Dal connettore arrivano 5 V (`VCC` sui pin 25-27). Servono almeno 3,3 V
-(I/O FPGA, SDRAM, MCU, traslatori lato FPGA), 2,5 V (ausiliaria ECP5) e 1,1 V
-(core ECP5). Non conosco la corrente che lo slot AES può dare a una cartuccia
-né quanto consumerà il progetto: **va misurato** prima di scegliere i
-regolatori (e magari serve un limitatore di inrush).
+5 V arrives from the connector (`VCC` on pins 25-27 for the AES). We need at least 3.3 V
+(FPGA I/O, SDRAM, MCU, FPGA-side translators), 2.5 V (ECP5 auxiliary) and 1.1 V (ECP5 core).
+I do not know the current an AES slot can give a cartridge nor how much the design will
+draw: **it must be measured** before choosing the regulators (and an inrush limiter may be
+needed).
 
-## 6. Cosa non è deciso e ostacola lo schema
+## 6. What is not decided and blocks the schematic
 
-1. **Meccanica.** Una cartuccia AES è fatta da due schede (PROG e CHA) con 100
-   contatti ciascuna; non ho le quote del guscio né la posizione relativa dei
-   due connettori. Servono le misure da una cartuccia vera (o un guscio) per
-   decidere se è una scheda sola con due pettini o due schede collegate.
-2. **Direzioni e livelli dei segnali** (`signals.csv`).
-3. **Corrente 5 V** e tempi di avvio rispetto al BIOS (`docs/BOOT.md`).
-4. **Disponibilità e prezzo** di FPGA e SDRAM scelte (non verificati).
-5. **Schema KiCad:** non l'ho generato. Non c'è KiCad in questo ambiente per
-   validarlo (ERC), e produrre uno schema non verificabile con un BGA da 554 sfere
-   avrebbe poco valore; il passo successivo è farlo con KiCad installato, a
-   partire da `hardware/signals.csv` e dai footprint AES della libreria
-   `neogeo-diag-kicad-library`.
+1. **Mechanics.** An AES cartridge is made of two boards (PROG and CHA) with 100 contacts
+   each; I do not have the shell dimensions nor the relative position of the two
+   connectors. Measurements from a real cartridge (or a shell) are needed to decide whether
+   it is a single board with two combs or two linked boards (proposal in `docs/PCB.md`).
+2. **Signal directions and levels** (`signals.csv`, `signals_mvs.csv`).
+3. **5 V current** and start-up times with respect to the BIOS (`docs/BOOT.md`).
+4. **Availability and price** of the chosen FPGA and SDRAM (not verified).
+5. **KiCad schematic:** I have not generated it. There is no KiCad in this environment to
+   validate it (ERC), and producing an unverifiable schematic with a 554-ball BGA would have
+   little value; the next step is to do it with KiCad installed, starting from
+   `hardware/signals.csv`, `hardware/signals_mvs.csv` and the AES footprints of the
+   `neogeo-diag-kicad-library` library.

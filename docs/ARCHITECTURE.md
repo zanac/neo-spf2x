@@ -1,178 +1,176 @@
-# Architettura della cartuccia Neo Geo AES con microSD
+# Architecture of the Neo Geo AES cartridge with microSD
 
-Stato del progetto: **formato, packer e loader sono scritti e testati; PCB e
-gateware FPGA non esistono ancora.** Questo documento separa ciò che è stato
-verificato da ciò che è ancora una proposta o un punto aperto.
+Project status: **format, packer and loader are written and tested; the PCB does
+not exist yet, and the FPGA gateware is simulated but not proven on a console.**
+(The MVS variant is described in `docs/MVS.md`.) This document separates what has
+been verified from what is still a proposal or an open point.
 
-## 1. Come funziona
+## 1. How it works
 
 ```
-PC                    microSD                 Cartuccia
-ricetta + ROM  --ngpk.py-->  gioco.ngpk  --->  MCU (FatFS + loader)
-                                                  |  scrive in SDRAM
+PC                    microSD                 Cartridge
+recipe + ROMs  --ngpk.py-->  game.ngpk  --->  MCU (FatFS + loader)
+                                                  |  writes into SDRAM
                                                   v
-                                   FPGA <--> SDRAM 64 MiB
+                                   FPGA <--> 64 MiB SDRAM
                                      |
-                                     +-- logica da cartuccia AES verso la console
+                                     +-- AES cartridge logic towards the console
 ```
 
-1. Sul PC `tools/ngpk.py` converte il romset di un gioco in un file `.ngpk`.
-2. All'accensione l'MCU legge il `.ngpk` dalla microSD, controlla i CRC e copia
-   le regioni in SDRAM (`firmware/ngsd_loader.c`).
-3. L'MCU scrive nei registri dell'FPGA le dimensioni e gli indirizzi delle
-   regioni, poi imposta `CTRL.RUN`.
-4. L'FPGA serve alla console i dati dalla SDRAM, replicando ciò che farebbero le
-   ROM e i chip di una cartuccia vera.
+1. On the PC `tools/ngpk.py` converts a game's romset into an `.ngpk` file.
+2. At power-on the MCU reads the `.ngpk` from the microSD, checks the CRCs and
+   copies the regions into SDRAM (`firmware/ngsd_loader.c`).
+3. The MCU writes the region sizes and addresses into the FPGA registers, then sets
+   `CTRL.RUN`.
+4. The FPGA serves the data from the SDRAM to the console, replicating what the ROMs
+   and chips of a real cartridge would do.
 
-La modularità sta in due punti: il formato `.ngpk` (i dettagli del gioco
-restano nel packer) e il campo `mapper` (le differenze di logica restano nel
-gateware, selezionate da un registro).
+Modularity lives in two places: the `.ngpk` format (game details stay in the
+packer) and the `mapper` field (logic differences stay in the gateware, selected by
+a register).
 
-## 2. Fatti verificati sul wiki neogeodev
+## 2. Facts verified on the neogeodev wiki
 
-* Il connettore AES ha 200 contatti (2 × 2 × 50).
-* Le cartucce AES contengono un chip **NEO-ZMC2** (o PRO-CT0); le MVS no.
-  NEO-ZMC2 unisce NEO-ZMC (bank switching dello Z80, ingressi `SDA0, SDA1,
-  SDA8-SDA15`, uscite `MA11-MA21` verso la M ROM) e PRO-CT0 (serializzatore
-  degli sprite).
-* PRO-CT0 prende i dati C in parallelo (`C0-C31`, "2×16 bit", tutto il
-  necessario per una linea di 8 pixel), li latcha sul fronte di discesa di
-  `12M` quando c'è `LOAD`, emette un pixel per ogni fronte di discesa di `12M`,
-  inverte l'ordine con `H` (flip orizzontale) e produce `DOTA/DOTB` e
-  `GAD0-3/GBD0-3`.
-* Tile: 16×16 px a 4 bpp = 128 byte. Le C ROM dispari hanno i bitplane 0-1, le
-  pari i bitplane 2-3.
-* Velocità richieste: C ROM sotto 250 ns (7 mclk); P ROM almeno 150 ns (con wait
-  state configurabili); V ROM ADPCM-A qualsiasi (> 2 µs), ADPCM-B 250 ns.
-* Bank switching della P: una scrittura (word, o byte a indirizzo dispari) nella
-  finestra `$200000-$2FFFFF` porta `/PORTWEL` basso e latcha D0/D1 su A20/A21
-  della P2; i latch si azzerano al reset; la finestra è di 1 MiB.
+* The AES connector has 200 contacts (2 × 2 × 50).
+* AES cartridges contain a **NEO-ZMC2** chip (or PRO-CT0); MVS ones do not.
+  NEO-ZMC2 merges NEO-ZMC (Z80 bank switching, inputs `SDA0, SDA1, SDA8-SDA15`,
+  outputs `MA11-MA21` towards the M ROM) and PRO-CT0 (sprite serializer).
+* PRO-CT0 takes the C data in parallel (`C0-C31`, "2×16 bit", everything needed for
+  a line of 8 pixels), latches it on the falling edge of `12M` when `LOAD` is
+  present, emits one pixel per falling edge of `12M`, reverses the order with `H`
+  (horizontal flip) and produces `DOTA/DOTB` and `GAD0-3/GBD0-3`.
+* Tile: 16×16 px at 4 bpp = 128 bytes. Odd C ROMs hold bitplanes 0-1, even ones
+  bitplanes 2-3.
+* Required speeds: C ROM under 250 ns (7 mclk); P ROM at least 150 ns (with
+  configurable wait states); ADPCM-A V ROM anything (> 2 µs), ADPCM-B 250 ns.
+* P bank switching: a write (word, or byte at an odd address) in the
+  `$200000-$2FFFFF` window drives `/PORTWEL` low and latches D0/D1 on A20/A21 of P2;
+  the latches clear at reset; the window is 1 MiB.
 
-**Conseguenza importante:** su AES la cartuccia non porta solo memoria. L'FPGA
-deve **replicare NEO-ZMC2** (bank switching Z80 e serializzatore pixel) oltre al
-latch della P. Il serializzatore ha vincoli di tempo veri: i dati C devono
-arrivare dalla SDRAM entro i 250 ns, quindi servono prefetch e una gestione
-attenta degli accessi a banco/riga.
+**Important consequence:** on AES the cartridge carries more than memory. The FPGA
+must **replicate NEO-ZMC2** (Z80 bank switching and pixel serializer) in addition to
+the P latch. The serializer has real timing constraints: the C data must arrive from
+the SDRAM within 250 ns, so prefetch and careful bank/row access handling are needed.
 
-**Pinout AES (da `docs/AES_PINOUT.md`) e ruolo reale dell'FPGA.** Il connettore
-CHA non porta i dati delle C ROM: porta in ingresso l'indirizzo del tile
-(`P0-P23`) con i segnali di temporizzazione (`CA4`, `PCK1B`, `PCK2B`, `2H1`,
-`12M`, `LOAD`, `EVEN`, `H`, `8M`, `24M`) e si aspetta in uscita i pixel già
-serializzati (`DOTA`, `DOTB`, `GAD0-3`, `GBD0-3`) e i dati del fix layer
-(`FIXD0-7`). L'FPGA quindi: legge `P0-P23`, va a prendere i dati nella SDRAM,
-li serializza con le regole di NEO-ZMC2 (inclusi `H` per il flip e `LOAD`) e
-pilota le uscite; in più serve il bus Z80 (`SDA0-15`, `SDD0-7`, `SDMRD`,
-`SDROM`) con il bank switching della M ROM, i bus ADPCM (`SDPAD/SDRAD`...) per
-la V ROM e, lato PROG, il bus 68k (`D0-D15`, `A1-A19`) con il latch di bank.
-Tutti questi segnali sono a livello della console (5 V), quindi servono
-traslatori o componenti tolleranti a 5 V.
+**AES pinout (from `docs/AES_PINOUT.md`) and the FPGA's real role.** The CHA
+connector does not carry the C ROM data: it takes as input the tile address
+(`P0-P23`) with the timing signals (`CA4`, `PCK1B`, `PCK2B`, `2H1`, `12M`, `LOAD`,
+`EVEN`, `H`, `8M`, `24M`) and expects as output the already serialized pixels
+(`DOTA`, `DOTB`, `GAD0-3`, `GBD0-3`) and the fix layer data (`FIXD0-7`). So the
+FPGA: reads `P0-P23`, fetches the data from the SDRAM, serializes it with the
+NEO-ZMC2 rules (including `H` for the flip and `LOAD`) and drives the outputs; in
+addition it must serve the Z80 bus (`SDA0-15`, `SDD0-7`, `SDMRD`, `SDROM`) with the
+M ROM bank switching, the ADPCM buses (`SDPAD/SDRAD`...) for the V ROM and, on the
+PROG side, the 68k bus (`D0-D15`, `A1-A19`) with the bank latch. All these signals
+are at console level (5 V), so translators or 5 V-tolerant parts are needed.
 
-## 3. Mappa SDRAM (profilo `ngsd-64M`)
+## 3. SDRAM map (`ngsd-64M` profile)
 
-Scelta di progetto, modificabile insieme al gateware.
+A design choice, changeable together with the gateware.
 
-| Regione | Base        | Massimo |
-|---------|-------------|---------|
-| P       | `0x0000000` | 8 MiB   |
-| V       | `0x0800000` | 16 MiB  |
-| S       | `0x1800000` | 1 MiB   |
-| M       | `0x1900000` | 1 MiB   |
-| C       | `0x1A00000` | 38 MiB  |
+| Region | Base        | Maximum |
+|--------|-------------|---------|
+| P      | `0x0000000` | 8 MiB   |
+| V      | `0x0800000` | 16 MiB  |
+| S      | `0x1800000` | 1 MiB   |
+| M      | `0x1900000` | 1 MiB   |
+| C      | `0x1A00000` | 38 MiB  |
 
-Totale 64 MiB. Samurai Shodown III (esempio fornito) occupa 35,25 MiB: P 3, C 26,
-V 6, S 0,125, M 0,125. Il gioco `spf2ng` occupa 45,4 MiB (P 5, C 32, V 8, S 0,125,
-M 0,25) e ci sta, con 6 MiB liberi sulla C.
-Giochi con C oltre 38 MiB o con ADPCM-B separata vengono rifiutati dal loader
-con un errore esplicito (`NGPK_E_PROFILE`). Con 128 MiB di SDRAM il profilo
-potrebbe crescere, ma è un'altra scheda.
+Total 64 MiB. Samurai Shodown III (the supplied example) takes 35.25 MiB: P 3,
+C 26, V 6, S 0.125, M 0.125. The `spf2ng` game takes 45.4 MiB (P 5, C 32, V 8,
+S 0.125, M 0.25) and fits, with 6 MiB left free on C. Games with C above 38 MiB or
+with a separate ADPCM-B are rejected by the loader with an explicit error
+(`NGPK_E_PROFILE`). With 128 MiB of SDRAM the profile could grow, but that is a
+different board.
 
-## 4. Contratto firmware ↔ FPGA
+## 4. Firmware ↔ FPGA contract
 
-Registri a 32 bit (`firmware/ngsd_loader.h`):
+32-bit registers (`firmware/ngsd_loader.h`):
 
-| Registro | Indirizzo | Significato |
-|----------|-----------|-------------|
-| `CTRL` | `0x00` | bit0 `RUN`: 0 = cartuccia ferma, 1 = gioco in esecuzione; bit1 `STUB`: serve lo stub di avvio dalla boot RAM (lo azzera l'FPGA quando il 68k lo chiede) |
-| `MAPPER` | `0x01` | id mapper del pacchetto |
-| `MAPPER_ARG` | `0x02` | argomento del mapper |
-| `SIZE_x` | `0x10 + (tipo-1)` | byte presenti nella regione (0 se assente) |
-| `BOOT_ADDR` | `0x30` | indice (parola da 16 bit) della boot RAM per la prossima scrittura |
-| `BOOT_DATA` | `0x31` | parola da 16 bit, scritta all'indice che poi avanza |
-| `ADDR_x` | `0x20 + (tipo-1)` | base SDRAM della regione |
+| Register | Address | Meaning |
+|----------|---------|---------|
+| `CTRL` | `0x00` | bit0 `RUN`: 0 = cartridge stopped, 1 = game running; bit1 `STUB`: serve the boot stub from the boot RAM (cleared by the FPGA when the 68k asks) |
+| `MAPPER` | `0x01` | mapper id of the package |
+| `MAPPER_ARG` | `0x02` | mapper argument |
+| `SIZE_x` | `0x10 + (type-1)` | bytes present in the region (0 if absent) |
+| `BOOT_ADDR` | `0x30` | index (16-bit word) of the boot RAM for the next write |
+| `BOOT_DATA` | `0x31` | 16-bit word, written at the index, which then advances |
+| `ADDR_x` | `0x20 + (type-1)` | SDRAM base of the region |
 
-Il loader mette `CTRL = STUB` e carica la boot RAM prima di scrivere in SDRAM
-e imposta `RUN` (e il flag "pronto" dello stub) solo dopo che tutti i CRC sono
-corretti. Il trasporto fisico (SPI a 1 bit o QSPI tra MCU e
-FPGA) non è ancora scelto: il loader lo vede solo come `sdram_write` e
-`fpga_reg`.
+The loader sets `CTRL = STUB` and loads the boot RAM before writing into SDRAM, and
+sets `RUN` (and the stub's "ready" flag) only after all CRCs are correct. The
+physical transport (1-bit SPI or QSPI between MCU and FPGA) is not chosen yet: the
+loader only sees it as `sdram_write` and `fpga_reg`.
 
-Tempi di caricamento stimati (non misurati): per 35 MiB circa 6 s con SPI a
-50 MHz, 2-3 s con SDIO a 4 bit.
+Estimated load times (not measured): for 35 MiB about 6 s with 50 MHz SPI, 2-3 s
+with 4-bit SDIO.
 
-## 5. Cosa è stato testato
+## 5. What has been tested
 
-* Packer: round trip byte per byte sul romset di esempio (due versioni del
-  programma), rifiuto di swap sbagliato, interleave di lunghezze diverse, mapper
-  sconosciuto, header corrotto.
-* Loader in C (compilato con AddressSanitizer e UBSan): carica per intero il
-  pacchetto da 35 MiB in una SDRAM simulata e confronta ogni regione con i file
-  estratti; prova buffer di 512, 1000, 4096 e 65536 byte; verifica che un bit
-  alterato nei dati blocchi `RUN`, che un header alterato o un gioco troppo
-  grande non tocchino l'hardware.
-* Layout `sdram1` di C e S: round trip, permutazione, confronto pixel per pixel
-  con un modello di riferimento della decodifica canonica, flag nelle regioni,
-  e rifiuto di un pacchetto canonico da parte del loader (`NGPK_E_LAYOUT`).
-* Come eseguirli: `tests/run_all.sh [cartella_romset]`.
+* Packer: byte-by-byte round trip on the example romset (two program versions),
+  rejection of a wrong swap, interleave of different lengths, unknown mapper,
+  corrupted header.
+* C loader (compiled with AddressSanitizer and UBSan): loads the whole 35 MiB package
+  into a simulated SDRAM and compares every region with the extracted files; tries
+  buffers of 512, 1000, 4096 and 65536 bytes; checks that a flipped bit in the data
+  blocks `RUN`, and that a corrupted header or a game that is too large do not touch
+  the hardware.
+* C and S `sdram1` layout: round trip, permutation, pixel-by-pixel comparison with a
+  reference model of the canonical decoding, region flags, and rejection of a
+  canonical package by the loader (`NGPK_E_LAYOUT`).
+* Gateware (Icarus Verilog): sprite fetch and serializer, fix, P bank latch, Z80
+  banking, boot stub, whole system with an SDRAM chip model, MVS variant. See
+  `docs/GATEWARE.md`.
+* How to run them: `tests/run_all.sh [romset_folder]`.
 
-## 6. Punti aperti (da risolvere prima del PCB)
+## 6. Open points (to resolve before the PCB)
 
-0. **Cosa deve fare il gateware è ora in gran parte chiaro** (sprite, fix,
-   bank switching P, NEO-ZMC): vedi `docs/TIMING.md`, ricavato dal sorgente di
-   Geolith e dal core NeoGeo_MiSTer. Non lo sono i ritardi in nanosecondi sul
-   connettore, elencati nella sezione 7 di quel documento.
-1. **Pinout AES: nomi e numeri di pin noti, il resto no.** I nomi dei segnali e
-   i numeri di pin di PROG e CHA vengono dal repo `neogeo-diag-aes-prog` (vedi
-   `docs/AES_PINOUT.md`). Mancano direzioni, livelli e i **margini in
-   nanosecondi** di `PCK1B/PCK2B`, `LOAD`, `CA4`, `EVEN`, `H`, `2H1`, `12M` e del
-   bus ADPCM. L'ordine degli eventi è noto dal core MiSTer; i margini vanno
-   misurati con un analizzatore logico su una console.
-2. **Avvio: soluzione scelta e simulata, non provata su console** (vedi
-   `docs/BOOT.md`). I pin `ROMWAIT`/`PWAIT`/`PDTACK` aggiungono solo stati di
-   attesa fissi, quindi non tengono ferma la console: l'FPGA serve invece al
-   68k uno stub di avvio (intestazione del gioco + 60 byte di codice) finché
-   l'MCU ha finito, poi la console viene riavviata sul gioco.
-3. **Layout dei dati C e S in SDRAM: definito, non verificato su hardware.** Il
-   packer produce il layout `sdram1` (vedi `docs/FORMAT.md`), una permutazione
-   per riga di tile, e il loader rifiuta pacchetti con altro layout
-   (`NGPK_E_LAYOUT`). La permutazione è coerente con un modello della
-   decodifica di Geolith (test automatici), ma la corrispondenza `CA4` ↔ metà
-   del tile e byte-lane ↔ bitplane resta un'ipotesi finché il gateware non
-   gira su una console.
-4. **Divisione P1/P2.** Per Samurai Shodown III ho dedotto da un confronto dei
-   file che `ep1+ep2` sia P1 (1 MiB) e `ep3+ep4+p5` sia P2 (2 MiB, uguale a
-   `sp2` della versione fswords). Va confermato con i dati della scheda.
-5. **Mapper.** Tutto ciò che richiede protezioni (SMA, PCM2, CMC, PVC...) non è
-   supportato. Che Samurai Shodown III sia `plain` lo ritengo probabile ma non
-   l'ho verificato.
-6. **Scelta componenti: proposta in `docs/COMPONENTS.md`.** Con 162 segnali
-   lato console servono circa 220 I/O: FPGA proposta ECP5 LFE5U-45F in
-   caBGA554 (245 I/O), SDRAM 64 MiB a ≥ 133 MHz, RP2040, circa 11 traslatori
-   a 16 bit. Restano aperti meccanica, direzioni dei segnali e corrente 5 V.
-7. **Selezione del gioco.** Per ora un file di configurazione sulla SD più un
-   pulsante per passare al successivo. Un menu eseguito dalla Neo Geo stessa è
-   possibile ma è un'altra fase.
-8. **Licenza.** GPL-3.0-or-later (file `LICENSE`). Il core di riferimento (NeoGeo_MiSTer)
-   ha un `LICENSE` v2 e file con intestazioni "v2 o successiva" e "v3 o
-   successiva": GPL-3.0-or-later è compatibile con entrambe, ma non con eventuali
-   file "solo v2" che non ho controllato uno per uno.
+0. **What the gateware must do is now largely clear** (sprites, fix, P bank
+   switching, NEO-ZMC): see `docs/TIMING.md`, derived from the Geolith source and the
+   NeoGeo_MiSTer core. The nanosecond delays on the connector are not, and are listed
+   in section 7 of that document.
+1. **AES pinout: names and pin numbers known, the rest not.** The signal names and
+   pin numbers of PROG and CHA come from the `neogeo-diag-aes-prog` repo (see
+   `docs/AES_PINOUT.md`). Directions, levels and the **margins in nanoseconds** of
+   `PCK1B/PCK2B`, `LOAD`, `CA4`, `EVEN`, `H`, `2H1`, `12M` and of the ADPCM bus are
+   missing. The order of events is known from the MiSTer core; the margins must be
+   measured with a logic analyzer on a console.
+2. **Boot: solution chosen and simulated, not proven on a console** (see
+   `docs/BOOT.md`). The `ROMWAIT`/`PWAIT`/`PDTACK` pins only add fixed wait states,
+   so they do not hold the console still: instead the FPGA serves the 68k a boot stub
+   (the game's header + 60 bytes of code) until the MCU is done, then the console is
+   restarted onto the game.
+3. **C and S data layout in SDRAM: defined, not verified on hardware.** The packer
+   produces the `sdram1` layout (see `docs/FORMAT.md`), a per-tile-row permutation,
+   and the loader rejects packages with another layout (`NGPK_E_LAYOUT`). The
+   permutation is consistent with a model of Geolith's decoding (automatic tests), but
+   the `CA4` ↔ tile half and byte-lane ↔ bitplane correspondence stays a hypothesis
+   until the gateware runs on a console.
+4. **P1/P2 split.** For Samurai Shodown III I deduced from a file comparison that
+   `ep1+ep2` is P1 (1 MiB) and `ep3+ep4+p5` is P2 (2 MiB, equal to `sp2` of the fswords
+   version). It must be confirmed with the board's data.
+5. **Mapper.** Anything requiring protections (SMA, PCM2, CMC, PVC...) is not
+   supported. That Samurai Shodown III is `plain` I consider likely but have not
+   verified.
+6. **Component choice: proposal in `docs/COMPONENTS.md`.** With 162 console-side
+   signals (AES) about 220 I/Os are needed: proposed FPGA ECP5 LFE5U-45F in caBGA554
+   (245 I/O), 64 MiB SDRAM at ≥ 133 MHz, RP2040, about 11 16-bit translators. The
+   mechanics, signal directions and 5 V current remain open. The MVS (182 signals)
+   needs the LFE5U-85F in the same package.
+7. **Game selection.** For now a configuration file on the SD plus a button to move
+   to the next one. A menu run by the Neo Geo itself is possible but is another phase.
+8. **License.** GPL-3.0-or-later (`LICENSE` file). The reference core (NeoGeo_MiSTer)
+   has a v2 `LICENSE` and files with "v2 or later" and "v3 or later" headers:
+   GPL-3.0-or-later is compatible with both, but not with any "v2 only" files that I
+   have not checked one by one.
 
-## 7. Prossimi passi
+## 7. Next steps
 
-1. Ricavare le temporizzazioni dei segnali (punto 1) e decidere la strategia di
-   avvio (punto 2). I footprint dei contatti AES (pubblico dominio) sono già
-   disponibili nella libreria del repo `neogeo-diag-kicad-library`.
-2. Scegliere FPGA/MCU/SDRAM e scrivere lo schema in KiCad.
-3. Scrivere il gateware: controller SDRAM con prefetch, latch P, NEO-ZMC2.
-4. Scrivere il livello hardware dell'MCU (SD, SPI/QSPI verso l'FPGA) sotto il
-   loader esistente.
-5. Simulare il gateware contro i dati del romset di esempio, poi prototipo.
+1. Derive the signal timings (point 1) and settle the boot strategy (point 2). The
+   AES contact footprints (public domain) are already available in the
+   `neogeo-diag-kicad-library` repo's library.
+2. Choose FPGA/MCU/SDRAM and write the KiCad schematic (AES and MVS, `docs/PCB.md`).
+3. Gateware: ADPCM bus, then real-console validation.
+4. Write the MCU's hardware layer (SD, SPI/QSPI towards the FPGA) under the existing
+   loader.
+5. Prototype.

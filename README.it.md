@@ -1,0 +1,68 @@
+# Cartuccia Neo Geo AES/MVS con microSD: formato, packer, loader e gateware
+
+[🇬🇧 English](README.md) · 🇮🇹 Italiano
+
+Una cartuccia Neo Geo (AES e MVS) che carica un gioco da una microSD. Il lato software
+(formato, packer, loader) è scritto e testato; il gateware FPGA è simulato ma non provato su
+una console; i PCB non sono ancora disegnati (la partizione è in `docs/it/PCB.md`). Vedi
+`docs/it/ARCHITECTURE.md` per lo stato e i punti aperti.
+
+**La documentazione è tenuta in inglese (`docs/`, `README.md`) e in italiano (`docs/it/`,
+questo README) e le due versioni si aggiornano insieme** (`tests/check_docs.py`).
+
+## Contenuto
+
+| Percorso | Cosa |
+|----------|------|
+| `docs/it/FORMAT.md` | Specifica del formato `.ngpk` e delle ricette |
+| `docs/it/MVS.md`, `docs/it/PCB.md` | Differenze MVS/AES, pinout MVS e partizione delle schede (AES + MVS) |
+| `docs/it/AES_PINOUT.md` | Nomi dei segnali e numeri di pin dei connettori AES PROG e CHA |
+| `docs/it/TIMING.md` | Comportamento di sprite, fix, bank switching e NEO-ZMC ricavato da Geolith, con ciò che manca |
+| `docs/it/ARCHITECTURE.md` | Architettura, mappa SDRAM, contratto con l'FPGA, punti aperti |
+| `tools/ngpk.py` | Packer/ispettore (Python 3, nessuna dipendenza) |
+| `recipes/` | Ricette: Samurai Shodown III (esempio) e `spf2ng` (il gioco del progetto) |
+| `docs/it/GATEWARE.md` | Stato del gateware Verilog e di cosa dimostrano i test |
+| `gateware/` | RTL e testbench (Icarus Verilog): sprite (AES e MVS), fix, banco P, bank Z80, controller SDRAM, arbitro, top |
+| `docs/it/BOOT.md` | Come la console vede la cartuccia durante il caricamento (stub di avvio) |
+| `boot/` | Sorgente 68k dello stub (`stub.S`) e binario |
+| `docs/it/COMPONENTS.md` | Budget di I/O, scelta di FPGA, SDRAM, MCU, traslatori e punti aperti dell'hardware |
+| `hardware/` | `gen_signals.py`, `signals.csv` (162 segnali AES), `signals_mvs.csv` (184 pin MVS), `mvs_pins.csv`, `extract_kicad_pins.py` |
+| `firmware/` | Parser `.ngpk` e loader in C99 portabile, più test su PC |
+| `tests/` | Test del packer, controllo della documentazione e script che esegue tutto |
+
+I file ROM non sono inclusi: servono i tuoi dump.
+
+**Licenza:** GPL-3.0-or-later, testo in `LICENSE`.
+
+## Uso
+
+```sh
+# creare un pacchetto (la ricetta elenca i file, --base-dir dice dove sono)
+python3 tools/ngpk.py pack recipes/samsho3.json --base-dir /percorso/romset -o samsho3.ngpk
+
+python3 tools/ngpk.py info   samsho3.ngpk    # regioni, dimensioni, CRC
+python3 tools/ngpk.py verify samsho3.ngpk    # ricontrolla i CRC
+python3 tools/ngpk.py unpack samsho3.ngpk -o out/   # P.bin, C.bin, ...
+# unpack --canonical riporta C e S in ordine MAME; pack usa il layout sdram1 (docs/it/FORMAT.md)
+
+# test (senza ROM usa un gioco sintetico; con una cartella usa anche il romset)
+tests/run_all.sh
+tests/run_all.sh /percorso/romset
+```
+
+Copia i `.ngpk` sulla microSD: il loader li legge tramite il file system dell'MCU (FatFS).
+
+## Aggiungere un gioco
+
+Si scrive una ricetta (vedi `docs/it/FORMAT.md`): quali file vanno in quale
+regione e con quale operazione (`concat`, `swap16`, `interleave8`). Il packer
+controlla che a `0x100` della P ci sia `NEO-GEO`, quindi uno swap sbagliato non
+passa inosservato. Giochi che richiedono protezioni o cifratura (SMA, PCM2,
+CMC, PVC...) non sono ancora supportati e vengono rifiutati.
+
+## Portare il loader su un MCU
+
+`firmware/ngsd_loader.c` non dipende dall'hardware. Si implementano quattro
+funzioni in `ngsd_hal_t`: lettura dal file sulla SD (FatFS), scrittura in SDRAM
+tramite l'FPGA, scrittura dei registri FPGA e, se serve, una barra di
+avanzamento. Il codice si compila con `-std=c99` senza librerie.

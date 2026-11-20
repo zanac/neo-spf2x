@@ -1,138 +1,137 @@
-# Gateware (stato)
+# Gateware (status)
 
-Verilog generico, nessuna primitiva di un costruttore. Simulazione con
-Icarus Verilog (`iverilog`, `vvp`); i test girano solo se `iverilog` è installato.
+Generic Verilog, no vendor primitives. Simulation with Icarus Verilog (`iverilog`,
+`vvp`); the tests only run if `iverilog` is installed.
 
-## Moduli
+## Modules
 
-| File | Cosa fa |
-|------|---------|
-| `gateware/rtl/ng_cfetch.v` | Sprite: cattura l'indirizzo dal bus `P` su `PCK1B`, legge dalla SDRAM la riga di tile (8 byte, una sola lettura) e la serializza a 2 pixel per tick di `12M`, con `H` per il flip |
-| `gateware/rtl/ng_sfetch.v` | Fix layer: cattura tile/posizione su `PCK2B`, legge 8 byte, `S2H1` sceglie il byte per `FIXD0-7` |
-| `gateware/rtl/ng_pbank.v` | 68k: lettura della P (P1 fissa + finestra da 1 MiB) e latch di bank, azzerato al reset |
-| `gateware/rtl/ng_zmc.v` | Z80: bank switching della M ROM (4 finestre, reach 512 KiB, mappa identità al reset) |
-| `gateware/rtl/ng_boot.v` | Boot RAM da 1 KiB servita al 68k in modalità stub (`docs/BOOT.md`), scritta dall'MCU, precaricabile da `BOOT_HEX` |
-| `gateware/rtl/ng_rdport.v` | Lettura di un byte da una regione (porta M e porta V dei dati ADPCM, astratta) |
-| `gateware/rtl/ng_sdram.v` | Controller SDR SDRAM 16 bit, 4 banchi, CL3, burst 4, pagina chiusa, una richiesta alla volta; init e refresh |
-| `gateware/rtl/ng_arb.v`, `ng_fifo4.v` | Arbitro a priorità fissa MCU > C > S > P > M > V con FIFO di 4 richieste per porta |
-| `gateware/rtl/ng_top.v` | Integrazione: registri dell'MCU (la mappa di `firmware/ngsd_loader.h`), maschere dei tile ricavate da `SIZE_x`, basi da `ADDR_x`, porta SDRAM dell'MCU, boot RAM e modalità stub |
-| `gateware/tb/` | Testbench e modello comportamentale della SDRAM con controlli di temporizzazione e refresh |
-| `gateware/model/` | `sdram_budget.py` (modello ideale in Python) e `rtl_budget.py` (stress sull'RTL) |
+| File | What it does |
+|------|--------------|
+| `gateware/rtl/ng_cfetch.v` | Sprites (AES): captures the address from the `P` bus on `PCK1B`, reads the tile row from the SDRAM (8 bytes, a single read) and serializes it at 2 pixels per `12M` tick, with `H` for the flip |
+| `gateware/rtl/ng_cfetch_mvs.v` | Sprites (MVS): same fetch, no serializer; drives `CR0-CR31` with `CA4` choosing the 32-bit half (`docs/MVS.md`) |
+| `gateware/rtl/ng_sfetch.v` | Fix layer: captures tile/position on `PCK2B`, reads 8 bytes, `S2H1` chooses the byte for `FIXD0-7` |
+| `gateware/rtl/ng_pbank.v` | 68k: P read (fixed P1 + 1 MiB window) and bank latch, cleared at reset |
+| `gateware/rtl/ng_mvs_pdec.v` | MVS: `ROMOE*/PORTOE*/PORTWE*` + `A1-A19` → address/strobe interface of `ng_pbank` |
+| `gateware/rtl/ng_zmc.v` | Z80: M ROM bank switching (4 windows, 512 KiB reach, identity map at reset) |
+| `gateware/rtl/ng_boot.v` | 1 KiB boot RAM served to the 68k in stub mode (`docs/BOOT.md`), written by the MCU, preloadable from `BOOT_HEX` |
+| `gateware/rtl/ng_rdport.v` | Byte read from a region (M port and V port of the ADPCM data, abstract) |
+| `gateware/rtl/ng_sdram.v` | 16-bit SDR SDRAM controller, 4 banks, CL3, burst 4, closed page, one request at a time; init and refresh |
+| `gateware/rtl/ng_arb.v`, `ng_fifo4.v` | Fixed-priority arbiter MCU > C > S > P > M > V with a 4-request FIFO per port |
+| `gateware/rtl/ng_top.v` | Integration: MCU registers (the map of `firmware/ngsd_loader.h`), tile masks derived from `SIZE_x`, bases from `ADDR_x`, MCU SDRAM port, boot RAM and stub mode; parameter `MVS` (0 = AES, 1 = MVS) and output `cr[31:0]` |
+| `gateware/tb/` | Testbenches and behavioural SDRAM model with timing and refresh checks |
+| `gateware/model/` | `sdram_budget.py` (ideal Python model) and `rtl_budget.py` (stress on the RTL) |
 
-Non ancora scritti: interfaccia fisica verso l'MCU (SPI/QSPI), ADPCM vero
-(bus `SDPAD/SDRAD`), gestione dell'avvio (`ROMWAIT`, `PDTACK`), vincoli di pin e
-temporizzazione, controller SDRAM con bank interleaving.
+Not written yet: physical interface towards the MCU (SPI/QSPI), real ADPCM (`SDPAD/SDRAD`
+buses, AES and MVS), wait handling (`ROMWAIT`, `PDTACK`), pin and timing constraints,
+SDRAM controller with bank interleaving, MVS multi-slot tri-state control (`SLOTCS`).
 
-## Come si prova
+## How to test
 
 ```sh
-python3 gateware/tests/test_cfetch.py                # serializzatore sprite, dati casuali
-python3 gateware/tests/test_cfetch.py C_canonico.bin # idem con dati reali (ordine MAME)
-python3 gateware/tests/test_modules.py               # fix, banco P, Z80 banking
-python3 gateware/tests/test_system.py                # tutto insieme con controller e chip SDRAM
-python3 gateware/model/rtl_budget.py                 # traffico di picco sull'RTL, latenze
+python3 gateware/tests/test_cfetch.py                # sprite serializer, random data
+python3 gateware/tests/test_cfetch.py C_canonical.bin # same with real data (MAME order)
+python3 gateware/tests/test_modules.py               # fix, P bank, Z80 banking
+python3 gateware/tests/test_system.py                # everything together with controller and SDRAM chip
+python3 gateware/tests/test_mvs.py                   # MVS: CR fetch, P strobes decoder, ng_top MVS=0/1
+python3 gateware/model/rtl_budget.py                 # peak traffic on the RTL, latencies
 ```
 
-`tests/run_all.sh` li esegue se `iverilog` è installato.
+`tests/run_all.sh` runs them if `iverilog` is installed.
 
-Il test converte i dati canonici nel layout `sdram1` con `tools/ngpk.py`, li
-carica nel modello di SDRAM del testbench e confronta, per 400 righe di tile
-casuali (con e senza `H`, numeri di tile a 20 bit che si ripiegano sulla
-dimensione della C ROM), ogni pixel in uscita con il modello di decodifica
-canonica scritto seguendo Geolith. Prova anche tre combinazioni di latenza
-SDRAM e anticipo di `LOAD`; l'ultima è un test negativo che deve segnalare
-underrun. Risultato attuale: **0 pixel sbagliati** con dati casuali e con una
-porzione reale degli sprite di `spf2ng`.
+The test converts the canonical data to the `sdram1` layout with `tools/ngpk.py`, loads
+it into the testbench's SDRAM model and compares, for 400 random tile rows (with and
+without `H`, 20-bit tile numbers that fold back onto the C ROM size), every output pixel
+with the canonical decoding model written following Geolith. It also tries three
+combinations of SDRAM latency and `LOAD` lead; the last is a negative test that must
+report underrun. Current result: **0 wrong pixels** with random data and with a real
+portion of the `spf2ng` sprites.
 
-## Cosa dimostra e cosa no
+## What it proves and what it does not
 
-Dimostra che la permutazione `sdram1` e il serializzatore insieme restituiscono
-gli stessi pixel del decoder di riferimento, e che la logica regge il flusso di
-dati con le ipotesi sotto. **Non** dimostra che combaci con una console vera.
+It proves that the `sdram1` permutation and the serializer together return the same
+pixels as the reference decoder, and that the logic holds the data flow under the
+hypotheses below. It does **not** prove that it matches a real console.
 
-Scelte di modello non verificate su hardware:
+Model choices not verified on hardware:
 
-* `CA4 = 0` seleziona i primi 4 byte della riga (la metà a `+0x40` canonico).
-* Ogni tick di `12M` esce una coppia `(gad, gbd)` = (pixel precedente, pixel
-  seguente) nell'ordine temporale; `EVEN` non è usato. Su una cartuccia vera
-  `EVEN` e `H` decidono quali bit formano la coppia: da controllare.
-* `LOAD` è campionato su un tick di `12M` modellato come impulso del clock
-  veloce; la polarità e il fronte reali del `12M` sono un punto aperto.
-* La dimensione della C ROM è una potenza di due (`tile_mask`); per altre
-  dimensioni serve un modulo vero, che Geolith applica con `%`.
-* Nel test del solo serializzatore il modello di SDRAM ha latenza fissa; il
-  comportamento con una SDRAM e un controller veri è nella sezione "Misura
-  sull'RTL" (sotto), che però resta una simulazione.
+* `CA4 = 0` selects the first 4 bytes of the row (the canonical `+0x40` half).
+* At every `12M` tick a pair `(gad, gbd)` = (previous pixel, following pixel) comes out
+  in time order; `EVEN` is not used. On a real cartridge `EVEN` and `H` decide which bits
+  form the pair: to check.
+* `LOAD` is sampled on a `12M` tick modelled as a fast-clock pulse; the real polarity and
+  edge of `12M` are an open point.
+* The C ROM size is a power of two (`tile_mask`); for other sizes a real modulo module is
+  needed, which Geolith applies with `%`.
+* In the serializer-only test the SDRAM model has fixed latency; the behaviour with a real
+  SDRAM and controller is in the section "Measurement on the RTL" (below), which is still a
+  simulation.
+* MVS: the same `CA4` hypothesis, the assignment of `ROMOE`/`PORTOE`/`PORTWE` to the 68k
+  regions and the `CR` sampling deadline (`docs/MVS.md`).
 
-## Budget della SDRAM (modello, `gateware/model/sdram_budget.py`)
+## SDRAM budget (model, `gateware/model/sdram_budget.py`)
 
-Non è RTL: è uno scheduler a livello di ciclo di una SDRAM SDR da 16 bit
-(4 banchi, pagina chiusa con auto-precharge, parametri tipo 133 MHz CL3 con
-tRCD 20 ns, tRC 64 ns, refresh ogni 7,8 µs) che serve insieme il traffico
-peggiore che la console può generare, con le frequenze ricavate da
-`docs/TIMING.md`:
+It is not RTL: it is a cycle-level scheduler of a 16-bit SDR SDRAM (4 banks, closed page
+with auto-precharge, parameters like 133 MHz CL3 with tRCD 20 ns, tRC 64 ns, refresh every
+7.8 µs) that serves together the worst traffic the console can generate, with the
+frequencies derived from `docs/TIMING.md`:
 
-| Classe | Traffico | Modello |
-|--------|----------|---------|
-| C | riga di sprite da 8 byte ogni 667 ns (96 sprite per linea, 100 % di duty) | indirizzi casuali nei 32 MiB |
-| S | due letture da 16 bit ogni 667 ns | casuali in 128 KiB |
-| P | una lettura da 16 bit ogni 333 ns (68k a 12 MHz) | sequenziale |
-| M | un byte ogni 750 ns (Z80 a 4 MHz) | casuale |
-| V | ADPCM-A (6 canali) + ADPCM-B | casuale |
+| Class | Traffic | Model |
+|-------|---------|-------|
+| C | 8-byte sprite row every 667 ns (96 sprites per line, 100 % duty) | random addresses in 32 MiB |
+| S | two 16-bit reads every 667 ns | random in 128 KiB |
+| P | one 16-bit read every 333 ns (68k at 12 MHz) | sequential |
+| M | one byte every 750 ns (Z80 at 4 MHz) | random |
+| V | ADPCM-A (6 channels) + ADPCM-B | random |
 
-Risultato su 4 ms simulati (mappatura dei banchi "top" = 16 MiB per banco, o
-"interleave" = pagine da 2 KiB intercalate; priorità C-first o P-first):
+Result over 4 ms simulated (bank mapping "top" = 16 MiB per bank, or "interleave" = 2 KiB
+interleaved pages; C-first or P-first priority):
 
-* uso del bus dati **10 % a 133 MHz, 14 % a 100 MHz**: la banda non è il problema;
-* latenza peggiore (arrivo → ultimo dato) sulle letture C **173-241 ns a 133 MHz,
-  240-270 ns a 100 MHz**; p99 135-150 ns; P e S simili, M e V fino a 390 ns;
-* nessun accumulo di richieste in coda.
+* data bus usage **10 % at 133 MHz, 14 % at 100 MHz**: bandwidth is not the problem;
+* worst latency (arrival → last data) on C reads **173-241 ns at 133 MHz, 240-270 ns at
+  100 MHz**; p99 135-150 ns; P and S similar, M and V up to 390 ns;
+* no accumulation of queued requests.
 
-**Cosa significa e cosa no.** La SDRAM regge il traffico di picco con ampio
-margine di banda. Quello che il modello non può dire è se 170-270 ns bastano:
-dipende dalla distanza tra `PCK1B` e il `LOAD` che usa il dato, che non
-conosco (punto aperto, da misurare). Un indizio: il core NeoGeo_MiSTer serve
-le C ROM da una SDRAM a 120 MHz, quindi la scadenza reale è compatibile con
-latenze di questo ordine, ma è una deduzione dal suo funzionamento, non una
-misura. Il modello trascura inoltre sincronizzatori tra clock, ritardi dei
-traslatori 5 V, tRAS/precharge fini sui cambi di comando e l'arbitraggio vero
-del controller: va rifatto sul controller RTL quando esiste. Le scelte che
-restano utili: SDRAM a 133 MHz (non 100) per avere più margine sul caso peggiore
-di latenza, priorità a C e S rispetto al resto.
+**What it means and what not.** The SDRAM holds the peak traffic with ample bandwidth
+margin. What the model cannot say is whether 170-270 ns are enough: it depends on the
+distance between `PCK1B` and the `LOAD` that uses the data, which I do not know (open
+point, to be measured). A hint: the NeoGeo_MiSTer core serves the C ROMs from a 120 MHz
+SDRAM, so the real deadline is compatible with latencies of this order, but this is a
+deduction from how it works, not a measurement. The model also neglects clock-domain
+synchronizers, 5 V translator delays, fine tRAS/precharge on command changes and the real
+controller arbitration: it must be redone on the RTL controller when it exists. The choices
+that remain useful: 133 MHz SDRAM (not 100) to have more margin on the worst-case latency,
+priority to C and S over the rest.
 
-## Misura sull'RTL (`gateware/model/rtl_budget.py`)
+## Measurement on the RTL (`gateware/model/rtl_budget.py`)
 
-Stesso traffico di picco della tabella sopra, ma sull'RTL vero (`ng_top` +
-`ng_sdram` + chip comportamentale con controllo dei tempi), 2 ms simulati. Il
-controller attuale esegue **una richiesta alla volta** e non fa bank
-interleaving, quindi è peggiore del modello ideale.
+Same peak traffic as the table above, but on the real RTL (`ng_top` + `ng_sdram` +
+behavioural chip with timing checks), 2 ms simulated. The current controller executes
+**one request at a time** and does no bank interleaving, so it is worse than the ideal
+model.
 
-| Clock SDRAM | Sprite, latenza max / media | Fix | 68k (P) | Z80 (M) | V | Note |
-|-------------|----------------------------|-----|---------|---------|---|------|
-| 144 MHz | 285 / 138 ns | 285 ns | 326 ns | 590 ns | 667 ns | tutte le richieste servite, 0 errori di protocollo |
-| 96 MHz | 375 / 232 ns | 375 ns | 323 ns (25 % delle letture perse) | 740 ns | 11 µs (V affamata) | controller saturo |
+| SDRAM clock | Sprite, max / mean latency | Fix | 68k (P) | Z80 (M) | V | Notes |
+|-------------|----------------------------|-----|---------|---------|---|-------|
+| 144 MHz | 285 / 138 ns | 285 ns | 326 ns | 590 ns | 667 ns | all requests served, 0 protocol errors |
+| 96 MHz | 375 / 232 ns | 375 ns | 323 ns (25 % of reads lost) | 740 ns | 11 µs (V starved) | controller saturated |
 
-(Latenza = dal fronte di `PCK1B`/`PCK2B` o dalla richiesta fino al dato pronto.)
+(Latency = from the edge of `PCK1B`/`PCK2B` or from the request until the data is ready.)
 
-Letture: con questo controller **servono almeno circa 133-144 MHz** (parti
-speed grade -6/-7); a 96 MHz il traffico di picco lo satura. Il modello ideale
-dava il 10-14 % di uso del bus, ma presupponeva richieste sovrapposte su banchi
-diversi: se serve più margine o un clock più basso, il passo successivo è un
-controller con bank interleaving. Resta aperta, come prima, la scadenza reale
-tra `PCK1B` e `LOAD`, che non si ricava da simulazione.
+Reading: with this controller **at least about 133-144 MHz are needed** (speed grade
+-6/-7 parts); at 96 MHz the peak traffic saturates it. The ideal model gave 10-14 % bus
+usage, but assumed overlapped requests on different banks: if more margin or a lower clock
+is needed, the next step is a controller with bank interleaving. As before, the real
+deadline between `PCK1B` and `LOAD` remains open and cannot be derived from simulation.
 
-Il controller legge 8 byte per richiesta (burst da 4 beat su 16 bit) perché
-sprite e fix leggono esattamente 8 byte allineati; per P, M e V si usa solo la
-metà o il byte che serve. La scrittura è di una parola da 32 bit per volta
-(`dqm` maschera le altre): ~12 cicli per parola, ampiamente sopra i requisiti
-del caricamento da SD.
+The controller reads 8 bytes per request (4-beat burst on 16 bits) because sprite and fix
+read exactly 8 aligned bytes; for P, M and V only the half or the byte needed is used.
+Writing is one 32-bit word at a time (`dqm` masks the others): ~12 cycles per word,
+comfortably above the SD loading requirements.
 
-## Come vengono verificati i collegamenti con il firmware
+## How the links with the firmware are verified
 
-`tests/test_system.py` programma i registri come fa `firmware/ngsd_loader.c`
-(`SIZE_x`, `ADDR_x`, poi `CTRL.RUN`) e controlla: scrittura e rilettura SDRAM
-dall'MCU, 240 mezze righe sprite, 150 letture fix, 174 letture 68k con latch di
-bank, 113 letture Z80 con bank switching e 60 letture V. Il modello della SDRAM
-segnala violazioni di tRCD/tRC/tRP/tRFC, refresh mancato e indirizzi fuori
-memoria; con una violazione introdotta apposta (tRCD di un ciclo più corto) il
-test fallisce, quindi i controlli sono attivi.
+`tests/test_system.py` programs the registers as `firmware/ngsd_loader.c` does (`SIZE_x`,
+`ADDR_x`, then `CTRL.RUN`) and checks: SDRAM write and readback from the MCU, 240 sprite
+half-rows, 150 fix reads, 174 68k reads with bank latch, 113 Z80 reads with bank switching
+and 60 V reads. The SDRAM model flags tRCD/tRC/tRP/tRFC violations, missed refresh and
+out-of-memory addresses; with a deliberately introduced violation (tRCD one cycle shorter)
+the test fails, so the checks are active.

@@ -61,7 +61,7 @@ def main():
     rows = []
     for sec in re.split(r"^## ", text, flags=re.M):
         title = sec.split("\n")[0]
-        if not title.startswith("Scheda"):
+        if not title.startswith(("Scheda", "Board")):
             continue
         board = title.split()[1]
         for ln in sec.split("\n"):

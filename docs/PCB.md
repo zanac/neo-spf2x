@@ -1,37 +1,36 @@
-# Architettura delle schede (AES e MVS): proposta
+# Board architecture (AES and MVS): proposal
 
-KiCad non è disponibile in questo ambiente, quindi qui **non ci sono ancora
-schema e layout**: solo la partizione, da cui si disegna. Quote del guscio AES/MVS
-non disponibili (vanno misurate su un esemplare: wiki *Cartridge specifications*).
+KiCad is not available in this environment, so there is **no schematic or layout yet**: only
+the partition, from which to design. Dimensions of the AES/MVS shell are not available (to be
+measured on a specimen: wiki *Cartridge specifications*).
 
-## Partizione
+## Partition
 
-Ogni cartuccia è fatta di due schede, PROG e CHA, ciascuna con il suo pettine di
-contatti. Proposta, uguale per i due formati:
+Each cartridge is made of two boards, PROG and CHA, each with its own comb of contacts.
+Proposal, the same for both formats:
 
-| Scheda | Contenuto |
-|--------|-----------|
-| **CHA** | FPGA (ECP5 caBGA554), SDRAM 64 MiB, flash di configurazione, traslatori 5 V↔3,3 V per i segnali CHA |
-| **PROG** | traslatori per i segnali PROG, RP2040, slot microSD, LED/pulsante |
-| Collegamento | board-to-board a 3,3 V tra PROG e CHA (circa 83 segnali PROG + SPI/alimentazione) |
+| Board | Content |
+|-------|---------|
+| **CHA** | FPGA (ECP5 caBGA554), 64 MiB SDRAM, configuration flash, 5 V↔3.3 V translators for the CHA signals |
+| **PROG** | translators for the PROG signals, RP2040, microSD slot, LED/button |
+| Link | 3.3 V board-to-board between PROG and CHA (about 83 PROG signals + SPI/power) |
 
-I segnali PROG (A1-A19, D0-D15, strobe, ADPCM) devono arrivare all'FPGA: da qui il
-collegamento. Con l'FPGA su una sola scheda non servono traslatori sul ponte.
+The PROG signals (A1-A19, D0-D15, strobes, ADPCM) must reach the FPGA: hence the link. With
+the FPGA on a single board no translators are needed on the bridge.
 
-## Set di schede
+## Board sets
 
-* **AES:** pettine 50 contatti per lato (162 segnali): `AES_PINOUT.md`, `signals.csv`.
-* **MVS:** pettine 60 contatti per lato (182 segnali): `MVS.md`, `signals_mvs.csv`.
-* Stessa logica; cambiano solo i due pettini, il blocco traslatori (numero di
-  linee) e `MVS` nel gateware (parametro di `ng_top`).
+* **AES:** comb of 50 contacts per side (162 signals): `AES_PINOUT.md`, `signals.csv`.
+* **MVS:** comb of 60 contacts per side (182 signals): `MVS.md`, `signals_mvs.csv`.
+* Same logic; only the two combs, the translator block (number of lines) and `MVS` in the
+  gateware (parameter of `ng_top`) change.
 
-## Da fare in KiCad (nell'ordine)
+## To do in KiCad (in order)
 
-1. Schema: FPGA con banchi I/O a 3,3 V, SDRAM, traslatori (~12 da 16 bit per l'MVS,
-   ~11 per l'AES), RP2040, microSD, alimentazione da `VCC` del connettore (5 V).
-2. Footprint dei pettini dalla libreria `neogeo-diag-kicad-library`
-   (AES: `neogeo-aes-*-side-edge`; MVS: simboli già usati in `mvs_pins.csv`).
-3. Layout a 6-8 strati con SDRAM a impedenza controllata, finitura ENIG, smusso 45°.
-4. Verifica contro una cartuccia reale prima della produzione (continuità e
-   direzioni), assorbimento da 5 V, tenuta delle uscite in Hi-Z con `SLOTCS`
-   (MVS) e durante la configurazione FPGA.
+1. Schematic: FPGA with 3.3 V I/O banks, SDRAM, translators (~12 16-bit for the MVS, ~11 for
+   the AES), RP2040, microSD, power from the connector's `VCC` (5 V).
+2. Comb footprints from the `neogeo-diag-kicad-library` library (AES:
+   `neogeo-aes-*-side-edge`; MVS: the symbols already used in `mvs_pins.csv`).
+3. 6-8 layer layout with controlled-impedance SDRAM, ENIG finish, 45° chamfer.
+4. Verification against a real cartridge before production (continuity and directions), 5 V
+   draw, outputs held high-Z with `SLOTCS` (MVS) and during FPGA configuration.
