@@ -119,9 +119,27 @@ corrente di saturazione 3,0 A, corrente per salita di temperatura 2,2 A, DCR 42 
 anche i 2 A nominali del regolatore (2,1 A × 1,3 = 2,7 A); con i miei carichi stimati (circa 1 A, 0,2 A e 0,5 A, non
 misurati) basterebbe anche un NRS4012 da 1,65 A.
 
-Non verificato: i pull-up da 47 kΩ della microSD (le sezioni elettriche della Simplified Spec SD sono vuote), le
-correnti di alimentazione (Lattice Power Calculator), la corrente di saturazione degli induttori, il posizionamento
-dei condensatori pin per pin, TN-02024 (layout BGA), le quote della shell e le capacità del produttore di PCB.
+Pull-up microSD: la specifica SD (come riportata nel data sheet microSD Kingston, Tabella 10) dà 10-100 kΩ per i
+pull-up di bus CMD/DAT (RCMD, RDAT) e la card assorbe al massimo 100 mA (150 mA SDXC) in default speed e 200 mA in
+high speed; ho cambiato i 47 kΩ in 10 kΩ (dentro l'intervallo, il valore prescritto anche da Espressif), così i
+fronti sono più veloci. Produttore di PCB: le regole del generatore (0,1/0,1 mm pista/distanza, via 0,4/0,2 mm,
+6 strati, 1,6 mm, ENIG perché l'HASL non è offerto sui 6 strati) rientrano nelle capacità pubblicate di un grande
+produttore economico (JLCPCB: 0,09/0,09 mm, via minima 0,15/0,25 mm, via riempite e chiuse nei pad BGA di
+default da 6 strati); il produttore che sceglierai va ricontrollato.
+
+Non verificato: le correnti dinamiche di alimentazione (la mia stima sopra), il posizionamento dei condensatori pin
+per pin, le quote della shell, la numerazione dei pad del connettore di collegamento e il produttore effettivamente usato.
+
+**Bilancio di potenza (mia stima, non una misura; il Power Calculator Lattice richiede Diamond, non
+disponibile qui).** Dal data sheet (Tabella 3.8, tipico a 85 °C): ICC statica 116 mA a 1,1 V, ICCAUX 17 mA a
+2,5 V, ICCIO 0,5 mA per banco. SDRAM AS4C32M16SB: IDD4 124 mA, IDD5 160 mA, standby IDD3N 70 mA (un chip attivo più
+l'eventuale secondo in standby: 230 mA). FPGA dinamica, in modo grossolano: core a 132 MHz con circa 1300 flip-flop
+e attività 15-25 % circa 0,1 A a 1,1 V (ipotesi), I/O circa 0,15 A a 3,3 V nel caso peggiore (CV²f con 10-15 pF).
+Altri da memoria, non verificati: flash 25 mA, RP2040 30 mA, microSD 100-200 mA. Caso peggiore sui 3,3 V circa
+0,8 A, cioè circa 0,6 A dai 5 V (rendimento 90 %); il TLV62569 dà 2 A (commutazione 1,5 MHz), il ripple
+dell'induttore è circa 0,34 A (3,3 V da 5 V, 2,2 µH), picco circa 1 A contro Isat 3,0 A, e la linea a 1,1 V circa
+0,3 A. Quindi convertitori e induttore hanno un margine di almeno 2; il numero da verificare è il carico sui 5 V della
+console rispetto a quello che lo slot può dare (ignoto, da misurare).
 
 **Registrazione meccanica, verificata sulle schede di riferimento (file KiCad di jwestfall69):**
 PROG e CHA hanno entrambe due fori di montaggio da 10 mm a 90 mm di distanza, nella stessa

@@ -114,9 +114,27 @@ apart) is the one of the KiCad `L_Taiyo-Yuden_NR-40xx` footprint. With the TLV62
 IL,max = IOUT,max + ΔIL/2, saturation 20-30 % above) the 3.0 A part covers even the full 2 A rating of the regulator
 (2.1 A × 1.3 = 2.7 A); with my estimated loads (about 1 A, 0.2 A and 0.5 A, not measured) a 1.65 A NRS4012 would also do.
 
-Not verified: the 47 kΩ microSD pull-ups (the electrical sections of the SD Simplified Spec are blank), supply
-currents (Lattice Power Calculator), inductor saturation current, the pin-by-pin decoupling placement, TN-02024
-(BGA layout), the shell dimensions and the PCB vendor capabilities.
+microSD pull-ups: the SD specification (as reproduced in the Kingston microSD data sheet, Table 10) gives
+10-100 kΩ for the CMD/DAT bus pull-ups (RCMD, RDAT) and the card draws at most 100 mA (150 mA SDXC) in default
+speed and 200 mA in high speed; I changed the 47 kΩ to 10 kΩ (inside the range, the value Espressif also
+prescribes), so the edges are faster. PCB vendor: the generator rules (0.1/0.1 mm track/space, 0.4/0.2 mm vias,
+6 layers, 1.6 mm, ENIG because HASL is not offered on 6 layers) are inside the published capabilities of a
+large low-cost vendor (JLCPCB: 0.09/0.09 mm, via 0.15/0.25 mm minimum, fill-and-cap vias in BGA pads by
+default from 6 layers); the vendor you choose must be checked again.
+
+Not verified: the dynamic supply currents (my estimate above), the pin-by-pin decoupling placement, the
+shell dimensions, the pad numbering of the link connector and the vendor you actually use.
+
+**Power budget (my estimate, not a measurement; the Lattice Power Calculator needs Diamond, not
+available here).** From the data sheet (Table 3.8, typical at 85 °C): static ICC 116 mA at 1.1 V, ICCAUX 17 mA
+at 2.5 V, ICCIO 0.5 mA per bank. SDRAM AS4C32M16SB: IDD4 124 mA, IDD5 160 mA, standby IDD3N 70 mA (one active
+chip plus the optional second in standby: 230 mA). Dynamic FPGA, rough: core at 132 MHz with ~1300 flip-flops
+and activity 15-25 % about 0.1 A at 1.1 V (guess), I/O about 0.15 A at 3.3 V worst case (CV²f with 10-15 pF).
+Others from memory, not checked: flash 25 mA, RP2040 30 mA, microSD 100-200 mA. Worst case on 3.3 V about
+0.8 A, i.e. about 0.6 A from the 5 V (efficiency 90 %); the TLV62569 gives 2 A (switching 1.5 MHz), the
+inductor ripple is about 0.34 A (3.3 V from 5 V, 2.2 µH), peak about 1 A against Isat 3.0 A, and the 1.1 V rail
+about 0.3 A. So the buck converters and the inductor have a factor of 2 or more of margin; the load on the
+console's 5 V is the number to check against what the slot can supply (unknown, to be measured).
 
 **Mechanical registration, checked on the reference boards (jwestfall69 KiCad files):** both
 PROG and CHA have two 10 mm mounting holes 90 mm apart, at the same position relative to the

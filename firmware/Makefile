@@ -13,7 +13,13 @@ test_loader: $(SRC) test/test_loader.c ngpk.h ngsd_loader.h ngsd_boot.h ngsd_stu
 test: test_loader
 	./test_loader $(PACK) $(UNPACKED) $(CANON) $(BOOT)
 
-clean:
-	rm -f test_loader bad_*.ngpk
+test_sd: sd_spi.c sd_spi.h test/test_sd.c
+	$(CC) $(CFLAGS) $(SAN) -o $@ sd_spi.c test/test_sd.c
 
-.PHONY: test clean
+check_sd: test_sd
+	./test_sd
+
+clean:
+	rm -f test_loader test_sd bad_*.ngpk
+
+.PHONY: test check_sd clean

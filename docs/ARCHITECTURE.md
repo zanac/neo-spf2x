@@ -147,7 +147,7 @@ with 4-bit SDIO.
    produces the `sdram1` layout (see `docs/FORMAT.md`), a per-tile-row permutation,
    and the loader rejects packages with another layout (`NGPK_E_LAYOUT`). The
    permutation is consistent with a model of Geolith's decoding (automatic tests), but
-   the `CA4` ↔ tile half and byte-lane ↔ bitplane correspondence stays a hypothesis
+   the byte-lane ↔ bitplane correspondence stays a hypothesis (`CA4` ↔ tile half follows the wiki)
    until the gateware runs on a console.
 4. **P1/P2 split.** For Samurai Shodown III I deduced from a file comparison that
    `ep1+ep2` is P1 (1 MiB) and `ep3+ep4+p5` is P2 (2 MiB, equal to `sp2` of the fswords
@@ -177,3 +177,11 @@ with 4-bit SDIO.
 4. Write the MCU's hardware layer (SD, SPI/QSPI towards the FPGA) under the existing
    loader.
 5. Prototype.
+
+**SD card driver.** `firmware/sd_spi.c` reads the card in SPI mode (CLK = SCK, CMD = MOSI, DAT0 = MISO,
+DAT3 = CS; the slot is wired to the RP2040 and has 10 kΩ pull-ups): init (74 clocks, CMD0, CMD8, ACMD41, CMD58, CMD16
+for SDSC), capacity from the CSD (v1 and v2) and single/multiple block reads (CMD17/CMD18 + CMD12), behind a small
+HAL like the loader. It is what FatFS's `disk_read()` needs (FatFS itself is not in the repository). Tested on the
+host against a model of an SDSC and an SDHC card, a missing card and a card that never leaves idle
+(`make -C firmware check_sd`); **not tested on a real card or on the RP2040**, whose SPI/GPIO glue is still to be
+written. The board is wired for 4-bit SDIO, which would be faster (PIO) but is not written.

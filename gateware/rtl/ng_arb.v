@@ -36,13 +36,21 @@ module ng_arb (
     end endgenerate
     assign mcu_full = full[0];
 
-    // priority pick (lowest index wins)
-    reg [2:0] pick; reg any;
+    // priority pick (lowest index wins), registered: the long empty-flag -> priority chain -> data
+    // mux path was the critical one at 132 MHz.  The pick is one cycle old: a FIFO can only become
+    // empty through our own pop, and after a pop 'busy' holds the issue off for several clocks, so a
+    // stale pick never points at an empty FIFO; a new push is merely seen one cycle later.
+    reg [2:0] pick, pick_n; reg any, any_n;
+    wire pop_any = !busy && any;
     integer i;
     always @* begin
-        any = 0; pick = 0;
+        any_n = 0; pick_n = 0;
         for (i = 7; i >= 0; i = i - 1)
-            if (!empty[i]) begin any = 1; pick = i; end
+            if (!empty[i]) begin any_n = 1; pick_n = i; end
+    end
+    always @(posedge clk) begin
+        if (rst) any <= 1'b0;
+        else begin any <= any_n && !(pop_any); pick <= pick_n; end
     end
     always @* begin
         pop_sel = 8'd0;

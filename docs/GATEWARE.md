@@ -148,10 +148,17 @@ comfortably above the SD loading requirements.
 
 `ng_top` synthesises with `yowasp-yosys` (`synth_ecp5`) and places with `yowasp-nextpnr-ecp5 --45k --package
 CABGA554 --speed 8 --out-of-context`: about 1333 flip-flops, 214 carry cells, 128 distributed-RAM cells and one
-block RAM (45k device: 43k LUT4, 108 block RAMs), so it fits with ample margin. **Timing does not close at the
-planned 132 MHz yet**: Fmax is 122-124 MHz over three seeds (grade -8, the fastest), through a long combinational
-path from the arbiter to the SDRAM request registers (`ng_arb` -> `ng_sdram`). A pipeline register on that path, or an
-SDRAM clock of 100-120 MHz, is needed; this check is not a power estimate and does not model the console clocks.
+block RAM (45k device: 43k LUT4, 108 block RAMs), so it fits with ample margin. Timing at the planned 132 MHz now closes with margin: Fmax **139-159 MHz over three seeds** (grade -8, the
+fastest, `--freq 132`). Two paths were fixed: the arbiter's priority pick is registered (a stale pick is
+harmless: a FIFO only empties through the arbiter's own pop, after which `busy` holds the next issue off for
+several clocks), and the tile masks (`c_mask`, `s_mask`), which depend only on the SIZE registers written
+before `CTRL.RUN`, are registered. The system testbenches pass unchanged. `rtl/ng_clk.v` is the board clock:
+24 MHz console clock (ball A2) -> `EHXPLLL` with CLKI_DIV 1, CLKFB_DIV 22 (VCO 528 MHz, inside 400-800) and
+CLKOP_DIV 4 = 132 MHz, a second output for the SDRAM clock pin and a reset released after the lock; it
+places with nextpnr but is **not simulated**, and the phase of the SDRAM clock output (`SDR_CPHASE`) and the
+CPHASE/FPHASE attribute values are my first guess to be taken from Diamond/ecppll and tuned on the bench.
+`SDR_INIT_CLKS` for the board must be at least 26400 (200 us at 132 MHz): use 27000. This check is not a
+power estimate and does not model the console clocks.
 It also found a real bug that Icarus did not: `stub_r` in `ng_top.v` had two drivers (fixed).
 
 ## How the links with the firmware are verified

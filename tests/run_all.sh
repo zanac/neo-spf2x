@@ -26,6 +26,8 @@ if [ $# -ge 1 ]; then
     python3 -I "$ROOT/tools/ngpk.py" unpack "$WORK/real.ngpk" -o "$WORK/real_unpacked" >/dev/null
     make -s -C "$ROOT/firmware" test PACK="$WORK/real.ngpk" UNPACKED="$WORK/real_unpacked"
 fi
+echo "== SD card driver (SPI mode) against a card model"
+make -s -C "$ROOT/firmware" check_sd
 make -s -C "$ROOT/firmware" clean
 if command -v iverilog >/dev/null 2>&1; then
     echo "== gateware, sprite fetch/serializer"

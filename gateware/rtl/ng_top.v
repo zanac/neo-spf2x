@@ -114,8 +114,14 @@ module ng_top #(parameter BOOT_HEX = "", parameter MVS = 0,
             pow2m1 = v[19:0];
         end
     endfunction
-    wire [19:0] c_mask = pow2m1(size[2] >> 7);
-    wire [11:0] s_mask = pow2m1(size[3] >> 5);
+    // The masks only depend on the SIZE_x registers, which the loader writes before CTRL.RUN, so they
+    // are registered (one clock late) to keep the divide/or-cascade out of the address adders.
+    reg [19:0] c_mask;
+    reg [11:0] s_mask;
+    always @(posedge clk) begin
+        c_mask <= pow2m1(size[2] >> 7);
+        s_mask <= pow2m1(size[3] >> 5);
+    end
 
     // ---- SDRAM chain ---------------------------------------------------------
     wire [7:0]   cl_req;

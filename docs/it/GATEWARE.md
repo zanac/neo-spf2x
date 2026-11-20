@@ -157,11 +157,17 @@ del caricamento da SD.
 
 `ng_top` si sintetizza con `yowasp-yosys` (`synth_ecp5`) e si piazza con `yowasp-nextpnr-ecp5 --45k --package
 CABGA554 --speed 8 --out-of-context`: circa 1333 flip-flop, 214 celle di riporto, 128 celle di RAM distribuita e
-una block RAM (dispositivo 45k: 43k LUT4, 108 block RAM), quindi ci sta con ampio margine. **Il timing non chiude
-ancora a 132 MHz**: la Fmax è 122-124 MHz su tre seed (grado -8, il più veloce), attraverso un lungo percorso
-combinatorio dall'arbitro ai registri di richiesta SDRAM (`ng_arb` -> `ng_sdram`). Serve un registro di pipeline su
-quel percorso, oppure un clock SDRAM di 100-120 MHz; la verifica non è una stima di potenza e non modella i clock
-della console. Ha inoltre trovato un bug vero che Icarus non vedeva: `stub_r` in `ng_top.v` aveva due driver (corretto).
+una block RAM (dispositivo 45k: 43k LUT4, 108 block RAM), quindi ci sta con ampio margine. Il timing a 132 MHz ora chiude con margine: Fmax **139-159 MHz su tre seed** (grado -8, il più
+veloce, `--freq 132`). Sono stati corretti due percorsi: la scelta di priorità dell'arbitro è registrata
+(una scelta vecchia di un ciclo è innocua: una FIFO si svuota solo con il pop dell'arbitro stesso, dopo il quale
+`busy` blocca la richiesta successiva per diversi clock) e le maschere dei tile (`c_mask`, `s_mask`), che dipendono
+solo dai registri SIZE scritti prima di `CTRL.RUN`, sono registrate. I testbench di sistema passano invariati.
+`rtl/ng_clk.v` è il clock di scheda: clock console da 24 MHz (ball A2) -> `EHXPLLL` con CLKI_DIV 1, CLKFB_DIV 22
+(VCO 528 MHz, dentro 400-800) e CLKOP_DIV 4 = 132 MHz, una seconda uscita per il pin clock della SDRAM e un reset
+rilasciato dopo l'aggancio; si piazza con nextpnr ma **non è simulato**, e la fase dell'uscita clock SDRAM
+(`SDR_CPHASE`) e i valori degli attributi CPHASE/FPHASE sono una mia prima ipotesi, da prendere da Diamond/ecppll e
+mettere a punto al banco. `SDR_INIT_CLKS` di scheda deve essere almeno 26400 (200 us a 132 MHz): usare 27000. La
+verifica non è una stima di potenza e non modella i clock della console. Ha inoltre trovato un bug vero che Icarus non vedeva: `stub_r` in `ng_top.v` aveva due driver (corretto).
 
 ## Come vengono verificati i collegamenti con il firmware
 

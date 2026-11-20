@@ -504,7 +504,7 @@ def build_prog(fmt):
           "9": "SD_DET", "10": GND, "11": GND}
     b.stock("J", "Connector", "Micro_SD_Card_Det_Hirose_DM3AT", "microSD", "Connector_Card:microSD_HC_Hirose_DM3AT-SF-PEJM5", sd)
     for n in ("SD_D0", "SD_D1", "SD_D2", "SD_D3", "SD_CMD"):
-        b.r(n, V3, "47k")
+        b.r(n, V3, "10k")
     # RP2040
     rp = {"1": V3, "10": V3, "22": V3, "33": V3, "42": V3, "49": V3, "43": V3, "44": V3, "48": V3,
           "23": "RP_DVDD", "50": "RP_DVDD", "45": "RP_DVDD", "57": GND, "19": GND,

@@ -152,8 +152,8 @@ Tempi di caricamento stimati (non misurati): per 35 MiB circa 6 s con SPI a
    packer produce il layout `sdram1` (vedi `docs/it/FORMAT.md`), una permutazione
    per riga di tile, e il loader rifiuta pacchetti con altro layout
    (`NGPK_E_LAYOUT`). La permutazione è coerente con un modello della
-   decodifica di Geolith (test automatici), ma la corrispondenza `CA4` ↔ metà
-   del tile e byte-lane ↔ bitplane resta un'ipotesi finché il gateware non
+   decodifica di Geolith (test automatici), ma la corrispondenza byte-lane ↔
+   bitplane resta un'ipotesi (`CA4` ↔ metà del tile segue il wiki) finché il gateware non
    gira su una console.
 4. **Divisione P1/P2.** Per Samurai Shodown III ho dedotto da un confronto dei
    file che `ep1+ep2` sia P1 (1 MiB) e `ep3+ep4+p5` sia P2 (2 MiB, uguale a
@@ -184,3 +184,11 @@ Tempi di caricamento stimati (non misurati): per 35 MiB circa 6 s con SPI a
 4. Scrivere il livello hardware dell'MCU (SD, SPI/QSPI verso l'FPGA) sotto il
    loader esistente.
 5. Prototipo.
+
+**Driver della scheda SD.** `firmware/sd_spi.c` legge la scheda in modalità SPI (CLK = SCK, CMD = MOSI,
+DAT0 = MISO, DAT3 = CS; lo slot è collegato all'RP2040 e ha pull-up da 10 kΩ): inizializzazione (74 clock, CMD0, CMD8,
+ACMD41, CMD58, CMD16 per le SDSC), capacità dal CSD (v1 e v2) e letture di uno o più blocchi (CMD17/CMD18 + CMD12),
+dietro una piccola HAL come il loader. È ciò che serve a `disk_read()` di FatFS (FatFS non è nel repository). Provato
+sull'host contro un modello di scheda SDSC e SDHC, una scheda assente e una che non esce mai da idle
+(`make -C firmware check_sd`); **non provato su una scheda vera né sull'RP2040**, di cui manca ancora il collegamento
+SPI/GPIO. La scheda è cablata per SDIO a 4 bit, più veloce (PIO) ma non scritto.
