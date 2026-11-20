@@ -156,8 +156,7 @@ Tempi di caricamento stimati (non misurati): per 35 MiB circa 6 s con SPI a
 7. **Selezione del gioco.** Per ora un file di configurazione sulla SD più un
    pulsante per passare al successivo. Un menu eseguito dalla Neo Geo stessa è
    possibile ma è un'altra fase.
-8. **Licenza.** Decisa dal proprietario del repo: GPL. Resta da fissare la
-   versione e aggiungere il file `LICENSE`. Il core di riferimento (NeoGeo_MiSTer)
+8. **Licenza.** GPL-3.0-or-later (file `LICENSE`). Il core di riferimento (NeoGeo_MiSTer)
    ha un `LICENSE` v2 e file con intestazioni "v2 o successiva" e "v3 o
    successiva": GPL-3.0-or-later è compatibile con entrambe, ma non con eventuali
    file "solo v2" che non ho controllato uno per uno.

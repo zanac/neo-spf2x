@@ -19,8 +19,7 @@ aperti.
 
 I file ROM non sono inclusi: servono i tuoi dump.
 
-**Licenza:** GPL. La versione e il file `LICENSE` vanno ancora fissati (vedi
-`docs/ARCHITECTURE.md`, punto 8 dei punti aperti).
+**Licenza:** GPL-3.0-or-later, testo in `LICENSE`.
 
 ## Uso
 
