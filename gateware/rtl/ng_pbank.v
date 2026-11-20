@@ -10,6 +10,9 @@
 `timescale 1ns/1ps
 module ng_pbank (
     input  wire        clk, rst,
+    input  wire        stub_en,     // serve the first 1 KiB from the boot RAM
+    input  wire [15:0] boot_rdata,  // boot RAM word addressed by a[8:0] (1 clk)
+    output wire        swap_req,    // 68k wrote the magic word: stop the stub
     input  wire [7:0]  bank_mask,
     input  wire [31:0] p_base,
     // 68k bus (word address, A23..A1 -> a[22:0] = A23..A1)
@@ -32,9 +35,17 @@ module ng_pbank (
     wire p1   = (ba[23:20] == 4'h0);
     assign in_cart = win | p1;
 
+    // magic write: word 0xA5A5 at $2FFFF0 asks the FPGA to leave stub mode.
+    // It must not disturb the bank latch.
+    wire magic = wr && win && (a == 23'h17FFF8) && (wdata == 16'hA5A5);
+    assign swap_req = magic;
     always @(posedge clk)
         if (rst) bank <= 0;
-        else if (wr && win) bank <= wdata[7:0] & bank_mask;
+        else if (wr && win && !magic) bank <= wdata[7:0] & bank_mask;
+
+    wire stub_hit = stub_en && p1 && (ba[19:10] == 10'd0);
+    reg  sreq;
+    reg  [15:0] last_stub;
 
     reg [1:0] half;                                 // address bits 2:1
     reg pend;
@@ -42,7 +53,10 @@ module ng_pbank (
         mem_req <= 1'b0; rvalid <= 1'b0;
         if (rst) pend <= 0;
         else begin
-            if (rd && in_cart) begin
+            sreq <= 1'b0;
+            if (rd && stub_hit) sreq <= 1'b1;        // answered from boot RAM
+            if (sreq) begin rvalid <= 1'b1; rdata <= boot_rdata; end
+            if (rd && in_cart && !stub_hit) begin
                 mem_req  <= 1'b1;
                 // 20-bit offset in the 1 MiB region, 4-byte aligned word
                 mem_addr <= p_base

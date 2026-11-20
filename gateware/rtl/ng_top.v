@@ -4,7 +4,7 @@
 // real timing are a PCB/constraint matter).  MCU side: a register bus with
 // the map of firmware/ngsd_loader.h and an SDRAM word port for the loader.
 `timescale 1ns/1ps
-module ng_top (
+module ng_top #(parameter BOOT_HEX = "") (
     input  wire        clk, rst,
     input  wire        tick12,
     // sprites + fix (CHA connector)
@@ -35,6 +35,7 @@ module ng_top (
     input  wire [7:0]  reg_addr,
     input  wire [31:0] reg_wdata,
     output wire        run,
+    output wire        stub,
     // MCU SDRAM access
     input  wire        mcu_req, mcu_we,
     input  wire [31:0] mcu_addr, mcu_wdata,
@@ -51,17 +52,17 @@ module ng_top (
     input  wire [15:0] sd_dq_i
 );
     // ---- registers (map of firmware/ngsd_loader.h) --------------------------
-    reg        run_r;
+    reg        run_r, stub_r;
     reg [31:0] mapper, mapper_arg;
     reg [31:0] size [1:6], addr [1:6];
     integer k;
     always @(posedge clk) begin
         if (rst) begin
-            run_r <= 0; mapper <= 0; mapper_arg <= 0;
+            run_r <= 0; stub_r <= 0; mapper <= 0; mapper_arg <= 0;
             for (k = 1; k <= 6; k = k + 1) begin size[k] <= 0; addr[k] <= 0; end
         end else if (reg_wr) begin
             case (reg_addr)
-                8'h00: run_r <= reg_wdata[0];
+                8'h00: begin run_r <= reg_wdata[0]; stub_r <= reg_wdata[1]; end
                 8'h01: mapper <= reg_wdata;
                 8'h02: mapper_arg <= reg_wdata;
                 default: begin
@@ -72,6 +73,15 @@ module ng_top (
         end
     end
     assign run = run_r;
+    assign stub = stub_r;
+    wire swap_req;
+    always @(posedge clk) if (swap_req) stub_r <= 1'b0;   // 68k: game is ready, switch
+
+    // boot RAM (docs/BOOT.md): regs 0x30 = index, 0x31 = data
+    wire [15:0] boot_rdata;
+    ng_boot #(.BOOT_HEX(BOOT_HEX)) bootram(.clk(clk),
+        .idx_wr(reg_wr && reg_addr == 8'h30), .data_wr(reg_wr && reg_addr == 8'h31),
+        .wdata(reg_wdata[15:0]), .raddr(p_a[8:0]), .rdata(boot_rdata));
 
     // next power of two >= n, minus 1 (n >= 1)
     function [19:0] pow2m1(input [31:0] n);
@@ -133,7 +143,9 @@ module ng_top (
         .s2h1(s2h1), .tile_mask(s_mask), .s_base(addr[3]), .fixd(fixd),
         .fvalid(s_fvalid), .mem_req(s_mreq), .mem_addr(s_ma),
         .mem_valid(cl_rvalid[2]), .mem_rdata(cl_rdata));
-    ng_pbank pb(.clk(clk), .rst(rst | ~run_r), .bank_mask(8'h03), .p_base(addr[1]),
+    ng_pbank pb(.clk(clk), .rst(rst | (~run_r & ~stub_r)), .stub_en(stub_r),
+        .boot_rdata(boot_rdata), .swap_req(swap_req),
+        .bank_mask(8'h03), .p_base(addr[1]),
         .a(p_a), .rd(p_rd), .wr(p_wr), .wdata(p_wdata), .rdata(p_rdata),
         .rvalid(p_rvalid), .in_cart(), .mem_req(p_mreq), .mem_addr(p_ma),
         .mem_valid(cl_rvalid[3]), .mem_rdata(cl_rdata));

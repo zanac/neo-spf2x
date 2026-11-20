@@ -17,7 +17,8 @@ fi
 echo "== firmware loader, synthetic game"
 python3 -I "$ROOT/tests/make_synthetic.py" "$WORK/syn"
 python3 -I "$ROOT/tools/ngpk.py" unpack "$WORK/syn/synthetic.ngpk" -o "$WORK/syn/unpacked" >/dev/null
-make -s -C "$ROOT/firmware" test PACK="$WORK/syn/synthetic.ngpk" UNPACKED="$WORK/syn/unpacked" CANON="$WORK/syn/synthetic_canonical.ngpk"
+python3 -I "$ROOT/tools/mkstub.py" "$WORK/syn/unpacked/P.bin" -o "$WORK/syn/boot.bin" >/dev/null
+make -s -C "$ROOT/firmware" test PACK="$WORK/syn/synthetic.ngpk" UNPACKED="$WORK/syn/unpacked" CANON="$WORK/syn/synthetic_canonical.ngpk" BOOT="$WORK/syn/boot.bin"
 
 if [ $# -ge 1 ]; then
     echo "== firmware loader, real romset"

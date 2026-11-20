@@ -13,7 +13,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 G = os.path.join(HERE, "..")
 RTL = [os.path.join(G, "rtl", n) for n in
        ("ng_top.v", "ng_arb.v", "ng_fifo4.v", "ng_sdram.v", "ng_cfetch.v",
-        "ng_sfetch.v", "ng_pbank.v", "ng_zmc.v", "ng_rdport.v")]
+        "ng_sfetch.v", "ng_pbank.v", "ng_zmc.v", "ng_rdport.v", "ng_boot.v")]
 
 CONFIGS = {   # name: parameters (clock period ns, cycles per 12M, timings in clk)
     "96 MHz":  dict(PERIOD=10.4167, DIV12=8, TRCD=2, CL=3, TRC=7, TRP=2, TRFC=7, REFI=740),

@@ -16,6 +16,10 @@ aperti.
 | `recipes/` | Ricette: Samurai Shodown III (esempio) e `spf2ng` (il gioco del progetto) |
 | `docs/GATEWARE.md` | Stato del gateware Verilog e di cosa dimostrano i test |
 | `gateware/` | RTL e testbench (Icarus Verilog): sprite, fix, banco P, bank Z80, controller SDRAM, arbitro, top |
+| `docs/BOOT.md` | Come la console vede la cartuccia durante il caricamento (stub di avvio) |
+| `boot/` | Sorgente 68k dello stub (`stub.S`) e binario |
+| `docs/COMPONENTS.md` | Budget di I/O, scelta di FPGA, SDRAM, MCU, traslatori e punti aperti dell'hardware |
+| `hardware/` | `gen_signals.py` e `signals.csv`: i 162 segnali del connettore con direzione dedotta |
 | `firmware/` | Parser `.ngpk` e loader in C99 portabile, più test su PC |
 | `tests/` | Test del packer e script che esegue tutto |
 

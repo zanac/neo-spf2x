@@ -1,5 +1,7 @@
 /* ngsd_loader.c - see ngsd_loader.h */
 #include "ngsd_loader.h"
+#include "ngsd_boot.h"
+
 
 #define MiB (1024u * 1024u)
 
@@ -75,9 +77,26 @@ int ngsd_load(const ngsd_hal_t *hal, const ngsd_profile_t *profile,
     if (err)
         return err;
 
-    /* hold the cartridge idle while SDRAM is being filled */
-    if (hal->fpga_reg(hal->user, NGSD_REG_CTRL, 0))
-        return NGPK_E_IO;
+    /* boot stub: the BIOS must see a valid cartridge while we load, so the
+     * game's own header (read first, from the P region) goes into the boot RAM
+     * together with a small program that waits for the ready flag */
+    {
+        const ngpk_region_t *p = ngpk_find(info, NGPK_R_P);
+        uint8_t head[NGSD_BOOT_HEAD], boot[NGSD_BOOT_BYTES];
+        if (!p || p->size < NGSD_BOOT_HEAD)
+            return NGPK_E_FORMAT;
+        if (hal->read(hal->user, p->file_off, head, NGSD_BOOT_HEAD))
+            return NGPK_E_IO;
+        if (ngsd_build_boot_image(head, boot))
+            return NGPK_E_FORMAT;
+        if (hal->fpga_reg(hal->user, NGSD_REG_CTRL, NGSD_CTRL_STUB) ||
+            hal->fpga_reg(hal->user, NGSD_REG_BOOT_ADDR, 0))
+            return NGPK_E_IO;
+        for (unsigned i = 0; i < NGSD_BOOT_BYTES; i += 2)
+            if (hal->fpga_reg(hal->user, NGSD_REG_BOOT_DATA,
+                              ((uint32_t)boot[i] << 8) | boot[i + 1]))
+                return NGPK_E_IO;
+    }
 
     for (uint32_t i = 0; i < info->nregions; i++)
         total += info->region[i].size;
@@ -102,7 +121,10 @@ int ngsd_load(const ngsd_hal_t *hal, const ngsd_profile_t *profile,
                           profile->slot[t].base))
             return NGPK_E_IO;
     }
-    if (hal->fpga_reg(hal->user, NGSD_REG_CTRL, NGSD_CTRL_RUN))
+    /* release: game logic on, then tell the stub the game is ready */
+    if (hal->fpga_reg(hal->user, NGSD_REG_CTRL, NGSD_CTRL_RUN | NGSD_CTRL_STUB) ||
+        hal->fpga_reg(hal->user, NGSD_REG_BOOT_ADDR, NGSD_BOOT_FLAG_OFF / 2) ||
+        hal->fpga_reg(hal->user, NGSD_REG_BOOT_DATA, 1))
         return NGPK_E_IO;
     return NGPK_OK;
 }

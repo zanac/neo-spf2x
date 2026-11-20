@@ -1,0 +1,163 @@
+board,side,pin,signal,dir_guess,basis
+PROG,A,3,D0,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,B,3,A1,in,address / strobe / clock / bank bits driven by the console
+PROG,A,4,D1,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,B,4,A2,in,address / strobe / clock / bank bits driven by the console
+PROG,A,5,D2,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,B,5,A3,in,address / strobe / clock / bank bits driven by the console
+PROG,A,6,D3,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,B,6,A4,in,address / strobe / clock / bank bits driven by the console
+PROG,A,7,D4,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,B,7,A5,in,address / strobe / clock / bank bits driven by the console
+PROG,A,8,D5,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,B,8,A6,in,address / strobe / clock / bank bits driven by the console
+PROG,A,9,D6,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,B,9,A7,in,address / strobe / clock / bank bits driven by the console
+PROG,A,10,D7,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,B,10,A8,in,address / strobe / clock / bank bits driven by the console
+PROG,A,11,D8,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,B,11,A9,in,address / strobe / clock / bank bits driven by the console
+PROG,A,12,D9,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,B,12,A10,in,address / strobe / clock / bank bits driven by the console
+PROG,A,13,D10,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,B,13,A11,in,address / strobe / clock / bank bits driven by the console
+PROG,A,14,D11,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,B,14,A12,in,address / strobe / clock / bank bits driven by the console
+PROG,A,15,D12,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,B,15,A13,in,address / strobe / clock / bank bits driven by the console
+PROG,A,16,D13,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,B,16,A14,in,address / strobe / clock / bank bits driven by the console
+PROG,A,17,D14,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,B,17,A15,in,address / strobe / clock / bank bits driven by the console
+PROG,A,18,D15,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,B,18,A16,in,address / strobe / clock / bank bits driven by the console
+PROG,A,19,R/W,in,address / strobe / clock / bank bits driven by the console
+PROG,B,19,A17,in,address / strobe / clock / bank bits driven by the console
+PROG,A,20,AS,in,address / strobe / clock / bank bits driven by the console
+PROG,B,20,A18,in,address / strobe / clock / bank bits driven by the console
+PROG,A,21,ROMOEU,in,address / strobe / clock / bank bits driven by the console
+PROG,B,21,A19,in,address / strobe / clock / bank bits driven by the console
+PROG,A,22,ROMOEL,in,address / strobe / clock / bank bits driven by the console
+PROG,B,22,ROMOE,in,address / strobe / clock / bank bits driven by the console
+PROG,A,28,PORTOEU,in,address / strobe / clock / bank bits driven by the console
+PROG,B,28,ROMWAIT,out,wait lines towards the console (docs/BOOT.md)
+PROG,A,29,PORTOEL,in,address / strobe / clock / bank bits driven by the console
+PROG,B,29,PWAIT1,out,wait lines towards the console (docs/BOOT.md)
+PROG,A,30,PORTWEU,in,address / strobe / clock / bank bits driven by the console
+PROG,B,30,PWAIT0,out,wait lines towards the console (docs/BOOT.md)
+PROG,A,31,PORTWEL,in,address / strobe / clock / bank bits driven by the console
+PROG,B,31,PDTACK,out,wait lines towards the console (docs/BOOT.md)
+PROG,A,32,68KCLKB,in,address / strobe / clock / bank bits driven by the console
+PROG,B,32,SDRAD0,bidir,ADPCM multiplexed address/data bus
+PROG,A,33,RESET,in,address / strobe / clock / bank bits driven by the console
+PROG,B,33,SDRAD1,bidir,ADPCM multiplexed address/data bus
+PROG,A,34,SDPAD0,bidir,ADPCM multiplexed address/data bus
+PROG,B,34,SDRAD2,bidir,ADPCM multiplexed address/data bus
+PROG,A,35,SDPAD1,bidir,ADPCM multiplexed address/data bus
+PROG,B,35,SDRAD3,bidir,ADPCM multiplexed address/data bus
+PROG,A,36,SDPAD2,bidir,ADPCM multiplexed address/data bus
+PROG,B,36,SDRAD4,bidir,ADPCM multiplexed address/data bus
+PROG,A,37,SDPAD3,bidir,ADPCM multiplexed address/data bus
+PROG,B,37,SDRAD5,bidir,ADPCM multiplexed address/data bus
+PROG,A,38,SDPAD4,bidir,ADPCM multiplexed address/data bus
+PROG,B,38,SDRAD6,bidir,ADPCM multiplexed address/data bus
+PROG,A,39,SDPAD5,bidir,ADPCM multiplexed address/data bus
+PROG,B,39,SDRAD7,bidir,ADPCM multiplexed address/data bus
+PROG,A,40,SDPAD6,bidir,ADPCM multiplexed address/data bus
+PROG,B,40,SDRA8,in,address / strobe / clock / bank bits driven by the console
+PROG,A,41,SDPAD7,bidir,ADPCM multiplexed address/data bus
+PROG,B,41,SDRA9,in,address / strobe / clock / bank bits driven by the console
+PROG,A,42,SDPA8,in,address / strobe / clock / bank bits driven by the console
+PROG,B,42,SDRA20,in,address / strobe / clock / bank bits driven by the console
+PROG,A,43,SDPA9,in,address / strobe / clock / bank bits driven by the console
+PROG,B,43,SDRA21,in,address / strobe / clock / bank bits driven by the console
+PROG,A,44,SDPA10,in,address / strobe / clock / bank bits driven by the console
+PROG,B,44,SDRA22,in,address / strobe / clock / bank bits driven by the console
+PROG,A,45,SDPA11,in,address / strobe / clock / bank bits driven by the console
+PROG,B,45,SDRA23,in,address / strobe / clock / bank bits driven by the console
+PROG,A,46,SDPMPX,in,address / strobe / clock / bank bits driven by the console
+PROG,B,46,SDRMPX,in,address / strobe / clock / bank bits driven by the console
+PROG,A,47,SDPOE,in,address / strobe / clock / bank bits driven by the console
+PROG,B,47,SDROE,in,address / strobe / clock / bank bits driven by the console
+PROG,A,48,PORTADRS,in,address / strobe / clock / bank bits driven by the console
+PROG,B,48,4MB,unknown,"strap/size pin, function unverified"
+CHA,A,3,PCK1B,in,address / strobe / clock / bank bits driven by the console
+CHA,B,3,FIXD0,out,pixel / fix data towards the console
+CHA,A,4,PCK2B,in,address / strobe / clock / bank bits driven by the console
+CHA,B,4,FIXD1,out,pixel / fix data towards the console
+CHA,A,5,12M,in,address / strobe / clock / bank bits driven by the console
+CHA,B,5,FIXD2,out,pixel / fix data towards the console
+CHA,A,6,2H1,in,address / strobe / clock / bank bits driven by the console
+CHA,B,6,FIXD3,out,pixel / fix data towards the console
+CHA,A,7,EVEN,in,address / strobe / clock / bank bits driven by the console
+CHA,B,7,FIXD4,out,pixel / fix data towards the console
+CHA,A,8,H,in,address / strobe / clock / bank bits driven by the console
+CHA,B,8,FIXD5,out,pixel / fix data towards the console
+CHA,A,9,LOAD,in,address / strobe / clock / bank bits driven by the console
+CHA,B,9,FIXD6,out,pixel / fix data towards the console
+CHA,A,10,CA4,in,address / strobe / clock / bank bits driven by the console
+CHA,B,10,FIXD7,out,pixel / fix data towards the console
+CHA,A,11,P0,in,address / strobe / clock / bank bits driven by the console
+CHA,B,11,P1,in,address / strobe / clock / bank bits driven by the console
+CHA,A,12,P2,in,address / strobe / clock / bank bits driven by the console
+CHA,B,12,P3,in,address / strobe / clock / bank bits driven by the console
+CHA,A,13,P4,in,address / strobe / clock / bank bits driven by the console
+CHA,B,13,P5,in,address / strobe / clock / bank bits driven by the console
+CHA,A,14,P6,in,address / strobe / clock / bank bits driven by the console
+CHA,B,14,P7,in,address / strobe / clock / bank bits driven by the console
+CHA,A,15,P8,in,address / strobe / clock / bank bits driven by the console
+CHA,B,15,P9,in,address / strobe / clock / bank bits driven by the console
+CHA,A,16,P10,in,address / strobe / clock / bank bits driven by the console
+CHA,B,16,P11,in,address / strobe / clock / bank bits driven by the console
+CHA,A,17,P12,in,address / strobe / clock / bank bits driven by the console
+CHA,B,17,P13,in,address / strobe / clock / bank bits driven by the console
+CHA,A,18,P14,in,address / strobe / clock / bank bits driven by the console
+CHA,B,18,P15,in,address / strobe / clock / bank bits driven by the console
+CHA,A,19,P16,in,address / strobe / clock / bank bits driven by the console
+CHA,B,19,P17,in,address / strobe / clock / bank bits driven by the console
+CHA,A,20,P18,in,address / strobe / clock / bank bits driven by the console
+CHA,B,20,P19,in,address / strobe / clock / bank bits driven by the console
+CHA,A,21,P20,in,address / strobe / clock / bank bits driven by the console
+CHA,B,21,P21,in,address / strobe / clock / bank bits driven by the console
+CHA,A,22,P22,in,address / strobe / clock / bank bits driven by the console
+CHA,B,22,P23,in,address / strobe / clock / bank bits driven by the console
+CHA,A,28,SDRD0,in,address / strobe / clock / bank bits driven by the console
+CHA,A,29,SDRD1,in,address / strobe / clock / bank bits driven by the console
+CHA,A,30,SDA0,in,address / strobe / clock / bank bits driven by the console
+CHA,B,30,DOTA,out,pixel / fix data towards the console
+CHA,A,31,SDA1,in,address / strobe / clock / bank bits driven by the console
+CHA,B,31,DOTB,out,pixel / fix data towards the console
+CHA,A,32,SDA2,in,address / strobe / clock / bank bits driven by the console
+CHA,B,32,GAD0,out,pixel / fix data towards the console
+CHA,A,33,SDA3,in,address / strobe / clock / bank bits driven by the console
+CHA,B,33,GAD1,out,pixel / fix data towards the console
+CHA,A,34,SDA4,in,address / strobe / clock / bank bits driven by the console
+CHA,B,34,GAD2,out,pixel / fix data towards the console
+CHA,A,35,SDA5,in,address / strobe / clock / bank bits driven by the console
+CHA,B,35,GAD3,out,pixel / fix data towards the console
+CHA,A,36,SDA6,in,address / strobe / clock / bank bits driven by the console
+CHA,B,36,GBD0,out,pixel / fix data towards the console
+CHA,A,37,SDA7,in,address / strobe / clock / bank bits driven by the console
+CHA,B,37,GBD1,out,pixel / fix data towards the console
+CHA,A,38,SDA8,in,address / strobe / clock / bank bits driven by the console
+CHA,B,38,GBD2,out,pixel / fix data towards the console
+CHA,A,39,SDA9,in,address / strobe / clock / bank bits driven by the console
+CHA,B,39,GBD3,out,pixel / fix data towards the console
+CHA,A,40,SDA10,in,address / strobe / clock / bank bits driven by the console
+CHA,B,40,SDD0,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+CHA,A,41,SDA11,in,address / strobe / clock / bank bits driven by the console
+CHA,B,41,SDD1,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+CHA,A,42,SDA12,in,address / strobe / clock / bank bits driven by the console
+CHA,B,42,SDD2,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+CHA,A,43,SDA13,in,address / strobe / clock / bank bits driven by the console
+CHA,B,43,SDD3,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+CHA,A,44,SDA14,in,address / strobe / clock / bank bits driven by the console
+CHA,B,44,SDD4,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+CHA,A,45,SDA15,in,address / strobe / clock / bank bits driven by the console
+CHA,B,45,SDD5,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+CHA,A,46,SDMRD,in,address / strobe / clock / bank bits driven by the console
+CHA,B,46,SDD6,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+CHA,A,47,SDROM,in,address / strobe / clock / bank bits driven by the console
+CHA,B,47,SDD7,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+CHA,A,48,24M,in,address / strobe / clock / bank bits driven by the console
+CHA,B,48,8M,in,address / strobe / clock / bank bits driven by the console

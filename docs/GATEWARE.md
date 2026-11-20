@@ -11,10 +11,11 @@ Icarus Verilog (`iverilog`, `vvp`); i test girano solo se `iverilog` è installa
 | `gateware/rtl/ng_sfetch.v` | Fix layer: cattura tile/posizione su `PCK2B`, legge 8 byte, `S2H1` sceglie il byte per `FIXD0-7` |
 | `gateware/rtl/ng_pbank.v` | 68k: lettura della P (P1 fissa + finestra da 1 MiB) e latch di bank, azzerato al reset |
 | `gateware/rtl/ng_zmc.v` | Z80: bank switching della M ROM (4 finestre, reach 512 KiB, mappa identità al reset) |
+| `gateware/rtl/ng_boot.v` | Boot RAM da 1 KiB servita al 68k in modalità stub (`docs/BOOT.md`), scritta dall'MCU, precaricabile da `BOOT_HEX` |
 | `gateware/rtl/ng_rdport.v` | Lettura di un byte da una regione (porta M e porta V dei dati ADPCM, astratta) |
 | `gateware/rtl/ng_sdram.v` | Controller SDR SDRAM 16 bit, 4 banchi, CL3, burst 4, pagina chiusa, una richiesta alla volta; init e refresh |
 | `gateware/rtl/ng_arb.v`, `ng_fifo4.v` | Arbitro a priorità fissa MCU > C > S > P > M > V con FIFO di 4 richieste per porta |
-| `gateware/rtl/ng_top.v` | Integrazione: registri dell'MCU (la mappa di `firmware/ngsd_loader.h`), maschere dei tile ricavate da `SIZE_x`, basi da `ADDR_x`, porta SDRAM dell'MCU |
+| `gateware/rtl/ng_top.v` | Integrazione: registri dell'MCU (la mappa di `firmware/ngsd_loader.h`), maschere dei tile ricavate da `SIZE_x`, basi da `ADDR_x`, porta SDRAM dell'MCU, boot RAM e modalità stub |
 | `gateware/tb/` | Testbench e modello comportamentale della SDRAM con controlli di temporizzazione e refresh |
 | `gateware/model/` | `sdram_budget.py` (modello ideale in Python) e `rtl_budget.py` (stress sull'RTL) |
 

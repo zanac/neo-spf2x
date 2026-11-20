@@ -92,14 +92,17 @@ Registri a 32 bit (`firmware/ngsd_loader.h`):
 
 | Registro | Indirizzo | Significato |
 |----------|-----------|-------------|
-| `CTRL` | `0x00` | bit0 `RUN`: 0 = cartuccia ferma, 1 = gioco in esecuzione |
+| `CTRL` | `0x00` | bit0 `RUN`: 0 = cartuccia ferma, 1 = gioco in esecuzione; bit1 `STUB`: serve lo stub di avvio dalla boot RAM (lo azzera l'FPGA quando il 68k lo chiede) |
 | `MAPPER` | `0x01` | id mapper del pacchetto |
 | `MAPPER_ARG` | `0x02` | argomento del mapper |
 | `SIZE_x` | `0x10 + (tipo-1)` | byte presenti nella regione (0 se assente) |
+| `BOOT_ADDR` | `0x30` | indice (parola da 16 bit) della boot RAM per la prossima scrittura |
+| `BOOT_DATA` | `0x31` | parola da 16 bit, scritta all'indice che poi avanza |
 | `ADDR_x` | `0x20 + (tipo-1)` | base SDRAM della regione |
 
-Il loader mette `CTRL = 0` prima di scrivere in SDRAM e imposta `RUN` solo dopo
-che tutti i CRC sono corretti. Il trasporto fisico (SPI a 1 bit o QSPI tra MCU e
+Il loader mette `CTRL = STUB` e carica la boot RAM prima di scrivere in SDRAM
+e imposta `RUN` (e il flag "pronto" dello stub) solo dopo che tutti i CRC sono
+corretti. Il trasporto fisico (SPI a 1 bit o QSPI tra MCU e
 FPGA) non è ancora scelto: il loader lo vede solo come `sdram_write` e
 `fpga_reg`.
 
@@ -133,11 +136,11 @@ Tempi di caricamento stimati (non misurati): per 35 MiB circa 6 s con SPI a
    nanosecondi** di `PCK1B/PCK2B`, `LOAD`, `CA4`, `EVEN`, `H`, `2H1`, `12M` e del
    bus ADPCM. L'ordine degli eventi è noto dal core MiSTer; i margini vanno
    misurati con un analizzatore logico su una console.
-2. **Avvio.** Il BIOS legge la cartuccia subito all'accensione, ma la lettura
-   della SD richiede qualche secondo. Sul connettore PROG esistono `ROMWAIT`,
-   `PWAIT0/1` e `PDTACK`, candidati per tenere ferma la console: funzione e
-   polarità non verificate. L'alternativa è una piccola ROM di avvio servita
-   dall'FPGA nel frattempo.
+2. **Avvio: soluzione scelta e simulata, non provata su console** (vedi
+   `docs/BOOT.md`). I pin `ROMWAIT`/`PWAIT`/`PDTACK` aggiungono solo stati di
+   attesa fissi, quindi non tengono ferma la console: l'FPGA serve invece al
+   68k uno stub di avvio (intestazione del gioco + 60 byte di codice) finché
+   l'MCU ha finito, poi la console viene riavviata sul gioco.
 3. **Layout dei dati C e S in SDRAM: definito, non verificato su hardware.** Il
    packer produce il layout `sdram1` (vedi `docs/FORMAT.md`), una permutazione
    per riga di tile, e il loader rifiuta pacchetti con altro layout
@@ -151,8 +154,10 @@ Tempi di caricamento stimati (non misurati): per 35 MiB circa 6 s con SPI a
 5. **Mapper.** Tutto ciò che richiede protezioni (SMA, PCM2, CMC, PVC...) non è
    supportato. Che Samurai Shodown III sia `plain` lo ritengo probabile ma non
    l'ho verificato.
-6. **Scelta componenti.** FPGA (capacità, pin 5 V o traslatori), MCU (RP2040 o
-   STM32, che dà SDIO a 4 bit), SDRAM, regolatori. Dipende dai punti 1-3.
+6. **Scelta componenti: proposta in `docs/COMPONENTS.md`.** Con 162 segnali
+   lato console servono circa 220 I/O: FPGA proposta ECP5 LFE5U-45F in
+   caBGA554 (245 I/O), SDRAM 64 MiB a ≥ 133 MHz, RP2040, circa 11 traslatori
+   a 16 bit. Restano aperti meccanica, direzioni dei segnali e corrente 5 V.
 7. **Selezione del gioco.** Per ora un file di configurazione sulla SD più un
    pulsante per passare al successivo. Un menu eseguito dalla Neo Geo stessa è
    possibile ma è un'altra fase.

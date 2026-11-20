@@ -11,11 +11,15 @@ enum {
     NGSD_REG_CTRL       = 0x00,
     NGSD_REG_MAPPER     = 0x01,
     NGSD_REG_MAPPER_ARG = 0x02,
+    NGSD_REG_BOOT_ADDR  = 0x30,  /* boot RAM word index for the next write   */
+    NGSD_REG_BOOT_DATA  = 0x31,  /* 16-bit word, written then index++        */
     NGSD_REG_SIZE_BASE  = 0x10,  /* + (region type - 1): bytes in that region */
     NGSD_REG_ADDR_BASE  = 0x20   /* + (region type - 1): SDRAM base address   */
 };
 enum {
-    NGSD_CTRL_RUN = 1u << 0      /* 0: cartridge held idle, 1: game running */
+    NGSD_CTRL_RUN  = 1u << 0,    /* 0: cartridge held idle, 1: game running */
+    NGSD_CTRL_STUB = 1u << 1     /* serve the boot stub from the boot RAM
+                                    (cleared by the FPGA when the 68k asks) */
 };
 
 /* ---- board profile: where each region lives in SDRAM -------------------- */

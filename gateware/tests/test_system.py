@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.join(HERE, "..", "..", "tools"))
 import ngpk  # noqa: E402
 import test_modules as tm  # noqa: E402
 import test_cfetch as tc  # noqa: E402
+import mkstub  # noqa: E402
 
 KiB, MiB = 1024, 1 << 20
 P_BASE, V_BASE, S_BASE, M_BASE, C_BASE = 0, 0x300000, 0x340000, 0x350000, 0x400000
@@ -27,6 +28,9 @@ MEM = 8 * MiB
 def build():
     rnd = random.Random(2024)
     reg = {k: rnd.randbytes(n) for k, n in SIZES.items()}
+    p = bytearray(reg["P"])
+    p[0x100:0x107] = b"NEO-GEO"
+    reg["P"] = bytes(p)
     img = bytearray(MEM)
     img[P_BASE:P_BASE + SIZES["P"]] = reg["P"]
     img[V_BASE:V_BASE + SIZES["V"]] = reg["V"]
@@ -45,7 +49,7 @@ def run_sim(img, cmds, tb="tb_top", extra=()):
         f.write(cmds)
     rtl = [os.path.join(HERE, "..", "rtl", n) for n in
            ("ng_top.v", "ng_arb.v", "ng_fifo4.v", "ng_sdram.v", "ng_cfetch.v",
-            "ng_sfetch.v", "ng_pbank.v", "ng_zmc.v", "ng_rdport.v")]
+            "ng_sfetch.v", "ng_pbank.v", "ng_zmc.v", "ng_rdport.v", "ng_boot.v")]
     tbd = os.path.join(HERE, "..", "tb")
     vvp = os.path.join(d, "s.vvp")
     subprocess.run(["iverilog", "-g2012", "-o", vvp, os.path.join(tbd, tb + ".v"),
@@ -56,7 +60,49 @@ def run_sim(img, cmds, tb="tb_top", extra=()):
     return [ln for ln in out if ln], p.stdout
 
 
+def boot_scenario():
+    """Boot stub mode: serve the stub, flag, magic write hands over to the game."""
+    reg, img = build()
+    stub = mkstub.build_image(reg["P"][:512])
+    cmds, exp = [], []
+    word = lambda a: int.from_bytes(stub[a:a + 2], "big")
+    cmds.append("R 00 00000002\n")                       # STUB, game logic off
+    cmds.append("R 30 00000000\n")
+    for i in range(0, 1024, 2):
+        cmds.append("R 31 %08x\n" % word(i))
+    probe = [0x000, 0x002, 0x004, 0x100, 0x122, 0x124, 0x126, 0x200, 0x210, 0x224,
+             0x3FC, 0x3FE]
+    for a in probe:
+        cmds.append("PR %06x\n" % a); exp.append(word(a))
+    cmds.append("R 30 000001FF\nR 31 00000001\n")        # ready flag
+    cmds.append("PR 0003FE\n"); exp.append(1)
+    for t_, (sz, base) in {1: (SIZES["P"], P_BASE), 2: (SIZES["C"], C_BASE),
+                           3: (SIZES["S"], S_BASE), 4: (SIZES["M"], M_BASE),
+                           5: (SIZES["V"], V_BASE)}.items():
+        cmds.append("R %02x %08x\n" % (0x10 + t_ - 1, sz))
+        cmds.append("R %02x %08x\n" % (0x20 + t_ - 1, base))
+    cmds.append("R 00 00000003\n")                       # RUN + STUB
+    cmds.append("PR 000122\n"); exp.append(word(0x122))   # still the stub
+    cmds.append("PR 000400\n")                            # above 1 KiB: SDRAM
+    exp.append(int.from_bytes(reg["P"][0x400:0x402], "big"))
+    cmds.append("PW 200000 0002\n")                       # bank latch = 2
+    cmds.append("PW 2FFFF0 A5A5\n")                       # magic: leave stub mode
+    cmds.append("PR 000122\n")                            # now the game's header
+    exp.append(int.from_bytes(reg["P"][0x122:0x124], "big"))
+    cmds.append("PR 000200\n")
+    exp.append(int.from_bytes(reg["P"][0x200:0x202], "big"))
+    cmds.append("PR 200010\n")                            # latch must still be 2
+    exp.append(int.from_bytes(img[3 * MiB + 0x10:3 * MiB + 0x12], "big"))
+    out, _ = run_sim(img, "".join(cmds))
+    assert out[-1].startswith("SDRAM_ERRORS 0 "), out[-1]
+    got = [int(ln.split()[1], 16) for ln in out if ln.startswith("PR")]
+    assert got == exp, [(hex(g), hex(e)) for g, e in zip(got, exp) if g != e]
+    print("boot stub: %d checks OK (stub words, ready flag, above-1KiB, magic write, latch kept)"
+          % len(exp))
+
+
 def main():
+    boot_scenario()
     reg, img = build()
     rnd = random.Random(99)
     cmds, exp = [], []

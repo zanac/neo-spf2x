@@ -5,6 +5,7 @@
  *
  * 'unpacked_dir' holds P.bin, C.bin... as written by `ngpk.py unpack`.      */
 #include "../ngsd_loader.h"
+#include "../ngsd_boot.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,6 +21,10 @@ typedef struct {
     int      run_written;
     int      held_before_first_write;
     uint32_t last_progress;
+    uint16_t boot[NGSD_BOOT_BYTES / 2];
+    uint32_t boot_idx;
+    int      boot_writes;
+    int      stub_before_data;     /* CTRL.STUB was set before the first boot word */
 } mock_t;
 
 static int failures;
@@ -47,7 +52,8 @@ static int m_write(void *u, uint32_t addr, const void *src, uint32_t len)
     if ((uint64_t)addr + len > m->sdram_size)
         return -1;
     if (m->writes == 0)
-        m->held_before_first_write = (m->ctrl_writes > 0 && m->regs[0] == 0);
+        m->held_before_first_write = (m->ctrl_writes > 0 &&
+                                      (m->regs[0] & NGSD_CTRL_RUN) == 0);
     memcpy(m->sdram + addr, src, len);
     m->writes++;
     return 0;
@@ -59,6 +65,16 @@ static int m_reg(void *u, uint32_t reg, uint32_t val)
     if (reg > 255)
         return -1;
     m->regs[reg] = val;
+    if (reg == NGSD_REG_BOOT_ADDR)
+        m->boot_idx = val;
+    if (reg == NGSD_REG_BOOT_DATA) {
+        if (m->boot_idx >= NGSD_BOOT_BYTES / 2)
+            return -1;
+        if (m->boot_writes == 0)
+            m->stub_before_data = (m->regs[NGSD_REG_CTRL] & NGSD_CTRL_STUB) != 0;
+        m->boot_writes++;
+        m->boot[m->boot_idx++] = (uint16_t)val;
+    }
     if (reg == NGSD_REG_CTRL) {
         m->ctrl_writes++;
         if (val & NGSD_CTRL_RUN)
@@ -126,8 +142,8 @@ static const char *const NAMES[NGPK_R_COUNT] = { "?", "P", "C", "S", "M",
 
 int main(int argc, char **argv)
 {
-    if (argc != 3 && argc != 4) {
-        printf("usage: %s game.ngpk unpacked_dir [canonical.ngpk]\n", argv[0]);
+    if (argc < 3 || argc > 5) {
+        printf("usage: %s game.ngpk unpacked_dir [canonical.ngpk [expected_boot.bin]]\n", argv[0]);
         return 2;
     }
     const char *pack = argv[1], *dir = argv[2];
@@ -144,7 +160,47 @@ int main(int argc, char **argv)
         CHECK(err == NGPK_OK, "ngsd_load: %s", ngpk_strerror(err));
         CHECK(m.run_written, "RUN not set after a good load");
         CHECK(m.held_before_first_write, "cartridge not held before SDRAM writes");
-        CHECK(m.regs[NGSD_REG_CTRL] == NGSD_CTRL_RUN, "final CTRL wrong");
+        CHECK(m.regs[NGSD_REG_CTRL] == (NGSD_CTRL_RUN | NGSD_CTRL_STUB),
+              "final CTRL wrong");
+        CHECK(m.stub_before_data, "stub not enabled before boot RAM was written");
+        CHECK(m.boot_writes == NGSD_BOOT_BYTES / 2 + 1, "boot RAM writes: %d",
+              m.boot_writes);
+        CHECK(m.boot[NGSD_BOOT_FLAG_OFF / 2] == 1, "ready flag not set");
+        {   /* the boot image itself */
+            uint8_t head[NGSD_BOOT_HEAD], want[NGSD_BOOT_BYTES];
+            uint32_t flen;
+            char path[1024];
+            snprintf(path, sizeof path, "%s/P.bin", dir);
+            uint8_t *pp = slurp(path, &flen);
+            memcpy(head, pp, NGSD_BOOT_HEAD);
+            free(pp);
+            CHECK(ngsd_build_boot_image(head, want) == 0, "boot image build");
+            for (unsigned i = 0; i < NGSD_BOOT_BYTES; i += 2) {
+                uint16_t w = (uint16_t)((want[i] << 8) | want[i + 1]);
+                if (i == NGSD_BOOT_FLAG_OFF)
+                    w = 1;
+                if (m.boot[i / 2] != w) {
+                    CHECK(0, "boot RAM word %u: %04x vs %04x", i / 2,
+                          m.boot[i / 2], w);
+                    break;
+                }
+            }
+            if (argc == 5) {            /* image built by tools/mkstub.py */
+                uint32_t blen;
+                uint8_t *ex = slurp(argv[4], &blen);
+                CHECK(blen == NGSD_BOOT_BYTES, "expected boot image size");
+                for (unsigned i = 0; blen == NGSD_BOOT_BYTES && i < blen; i += 2) {
+                    uint16_t w = (uint16_t)((ex[i] << 8) | ex[i + 1]);
+                    if (i == NGSD_BOOT_FLAG_OFF)
+                        w = 1;
+                    if (m.boot[i / 2] != w) {
+                        CHECK(0, "differs from mkstub.py at word %u", i / 2);
+                        break;
+                    }
+                }
+                free(ex);
+            }
+        }
 
         uint32_t total = 0;
         for (uint32_t i = 0; err == NGPK_OK && i < info.nregions; i++) {
@@ -233,7 +289,7 @@ int main(int argc, char **argv)
     }
 
     /* 4b. C/S in canonical layout: the board needs sdram1 ------------------ */
-    if (argc == 4) {
+    if (argc >= 4) {
         printf("wrong layout\n");
         err = run(argv[3], prof, 4096, &m, &info);
         CHECK(err == NGPK_E_LAYOUT, "got %s", ngpk_strerror(err));
