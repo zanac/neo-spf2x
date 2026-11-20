@@ -1,0 +1,33 @@
+# ROM e pacchetti generati: non vanno nel repo
+*.ngpk
+*.neo
+*.p1
+*.p2
+*.sp2
+*.p5
+*.ep1
+*.ep2
+*.ep3
+*.ep4
+*.c1
+*.c2
+*.c3
+*.c4
+*.c5
+*.c6
+*.c7
+*.c8
+*.s1
+*.m1
+*.v1
+*.v2
+
+# build e cache
+__pycache__/
+firmware/test_loader
+firmware/bad_*.ngpk
+tests/_tmp/
+
+# strumenti
+boot/stub.o
+*.whl
