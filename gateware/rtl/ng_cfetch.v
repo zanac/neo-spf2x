@@ -11,9 +11,7 @@
 //  * within a 12M tick the pair is output as (gad = earlier pixel, gbd = later)
 //  * EVEN is not used
 `timescale 1ns/1ps
-module ng_cfetch #(
-    parameter [31:0] C_BASE = 32'h01A00000   // SDRAM byte address of C region
-) (
+module ng_cfetch (
     input  wire        clk,         // fast clock, SDRAM domain
     input  wire        rst,
     input  wire        tick12,      // one clk pulse per falling edge of 12M
@@ -24,7 +22,8 @@ module ng_cfetch #(
     input  wire        load,        // sampled on tick12
     input  wire        h,           // horizontal flip
     // configuration (from the MCU registers)
-    input  wire [19:0] tile_mask,   // (C size in tiles) - 1, size power of two
+    input  wire [19:0] tile_mask,   // next power of two >= C tiles, minus 1
+    input  wire [31:0] c_base,      // SDRAM byte address of the C region
     // pixel outputs, valid after the tick12 that sampled load / advanced
     output wire [3:0]  gad,
     output wire [3:0]  gbd,
@@ -34,7 +33,7 @@ module ng_cfetch #(
     output reg         mem_req,
     output reg  [31:0] mem_addr,    // byte address, 4-byte aligned
     input  wire        mem_valid,
-    input  wire [31:0] mem_rdata,
+    input  wire [63:0] mem_rdata,
     // status
     output wire        rdy0,        // half 0 of the latched row is in
     output wire        rdy1
@@ -47,37 +46,34 @@ module ng_cfetch #(
     // tile = {PBUS[23:20], PBUS[15:0]}, row = PBUS[19:16]
     wire [19:0] tile = {pbus[23:20], pbus[15:0]} & tile_mask;
     wire [3:0]  row  = pbus[19:16];
-    wire [31:0] row_addr = C_BASE + {tile, 7'd0} + {row, 3'd0};
+    wire [31:0] row_addr = c_base + {tile, 7'd0} + {row, 3'd0};
 
-    // ---- fetch: two sequential word reads ---------------------------------
-    reg [1:0]  issued;      // words requested
-    reg [1:0]  got;         // words received
+    // ---- fetch: one 8-byte read (both halves of the row) ------------------
+    reg        got;
+    reg        busy;      // a read is outstanding
+    reg        pend;      // a new row waits for the previous read to finish
     reg [31:0] a0;
     reg [31:0] w0, w1;
-    reg        busy;
 
     always @(posedge clk) begin
         mem_req <= 1'b0;
-        if (rst) begin
-            issued <= 0; got <= 0; busy <= 0;
-        end else begin
+        if (rst) begin got <= 0; busy <= 0; pend <= 0; end
+        else begin
             if (pck_rise) begin          // a new row supersedes any old one
-                a0 <= row_addr;
-                issued <= 0; got <= 0; busy <= 1;
-            end else if (busy && issued != 2) begin
-                mem_req  <= 1'b1;
-                mem_addr <= a0 + {issued, 2'b00} ;
-                issued   <= issued + 1;
+                a0 <= row_addr; got <= 0; pend <= 1;
             end
-            if (mem_valid && !pck_rise) begin
-                if (got == 0) w0 <= mem_rdata; else w1 <= mem_rdata;
-                got <= got + 1;
-                if (got == 1) busy <= 1'b0;
+            if (mem_valid && busy) begin
+                busy <= 0;
+                if (!(pck_rise || pend)) begin
+                    w0 <= mem_rdata[31:0]; w1 <= mem_rdata[63:32]; got <= 1;
+                end
+            end else if (pend && !busy && !pck_rise) begin
+                mem_req <= 1'b1; mem_addr <= a0; busy <= 1; pend <= 0;
             end
         end
     end
-    assign rdy0 = (got >= 1);
-    assign rdy1 = (got >= 2);
+    assign rdy0 = got;
+    assign rdy1 = got;
 
     // ---- serializer --------------------------------------------------------
     reg [7:0] l0, l1, l2, l3;       // lane k = bitplane k

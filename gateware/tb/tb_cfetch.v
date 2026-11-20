@@ -17,9 +17,9 @@ module tb_cfetch;
 
     reg pck1b = 0; reg [23:0] pbus = 0; reg ca4 = 0, load = 0, h = 0;
     wire [3:0] gad, gbd; wire dota, dotb, mem_req, rdy0, rdy1;
-    wire [31:0] mem_addr; reg mem_valid = 0; reg [31:0] mem_rdata = 0;
+    wire [31:0] mem_addr; reg mem_valid = 0; reg [63:0] mem_rdata = 0;
 
-    ng_cfetch #(.C_BASE(32'h0)) dut(.clk(clk), .rst(rst), .tick12(tick12),
+    ng_cfetch dut(.c_base(32'h0), .clk(clk), .rst(rst), .tick12(tick12),
         .pck1b(pck1b), .pbus(pbus), .ca4(ca4), .load(load), .h(h),
         .tile_mask(MASK[19:0]), .gad(gad), .gbd(gbd), .dota(dota), .dotb(dotb),
         .mem_req(mem_req), .mem_addr(mem_addr), .mem_valid(mem_valid),
@@ -28,14 +28,14 @@ module tb_cfetch;
 
     reg [31:0] mem [0:NWORDS-1];
     // read pipeline with fixed latency
-    reg [31:0] pipe_d [0:15]; reg pipe_v [0:15];
+    reg [63:0] pipe_d [0:15]; reg pipe_v [0:15];
     integer i;
     always @(posedge clk) begin
         for (i = 15; i > 0; i = i - 1) begin
             pipe_d[i] <= pipe_d[i-1]; pipe_v[i] <= pipe_v[i-1];
         end
         pipe_v[0] <= mem_req;
-        pipe_d[0] <= mem[mem_addr[31:2] % NWORDS];
+        pipe_d[0] <= {mem[((mem_addr[31:3] << 1) + 1) % NWORDS], mem[(mem_addr[31:3] << 1) % NWORDS]};
         mem_valid <= pipe_v[LAT-1];
         mem_rdata <= pipe_d[LAT-1];
     end

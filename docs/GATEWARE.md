@@ -5,21 +5,34 @@ Icarus Verilog (`iverilog`, `vvp`); i test girano solo se `iverilog` è installa
 
 ## Moduli
 
-| File | Cosa fa | Stato |
-|------|---------|-------|
-| `gateware/rtl/ng_cfetch.v` | Cattura l'indirizzo dal bus `P` su `PCK1B`, legge dalla SDRAM le due metà da 32 bit della riga di tile C, le serializza a 2 pixel per tick di `12M` (con `H` per il flip) | simulato |
+| File | Cosa fa |
+|------|---------|
+| `gateware/rtl/ng_cfetch.v` | Sprite: cattura l'indirizzo dal bus `P` su `PCK1B`, legge dalla SDRAM la riga di tile (8 byte, una sola lettura) e la serializza a 2 pixel per tick di `12M`, con `H` per il flip |
+| `gateware/rtl/ng_sfetch.v` | Fix layer: cattura tile/posizione su `PCK2B`, legge 8 byte, `S2H1` sceglie il byte per `FIXD0-7` |
+| `gateware/rtl/ng_pbank.v` | 68k: lettura della P (P1 fissa + finestra da 1 MiB) e latch di bank, azzerato al reset |
+| `gateware/rtl/ng_zmc.v` | Z80: bank switching della M ROM (4 finestre, reach 512 KiB, mappa identità al reset) |
+| `gateware/rtl/ng_rdport.v` | Lettura di un byte da una regione (porta M e porta V dei dati ADPCM, astratta) |
+| `gateware/rtl/ng_sdram.v` | Controller SDR SDRAM 16 bit, 4 banchi, CL3, burst 4, pagina chiusa, una richiesta alla volta; init e refresh |
+| `gateware/rtl/ng_arb.v`, `ng_fifo4.v` | Arbitro a priorità fissa MCU > C > S > P > M > V con FIFO di 4 richieste per porta |
+| `gateware/rtl/ng_top.v` | Integrazione: registri dell'MCU (la mappa di `firmware/ngsd_loader.h`), maschere dei tile ricavate da `SIZE_x`, basi da `ADDR_x`, porta SDRAM dell'MCU |
+| `gateware/tb/` | Testbench e modello comportamentale della SDRAM con controlli di temporizzazione e refresh |
+| `gateware/model/` | `sdram_budget.py` (modello ideale in Python) e `rtl_budget.py` (stress sull'RTL) |
 
-Modello di budget SDRAM (Python, non RTL): `gateware/model/sdram_budget.py`, vedi sotto.
-
-Non ancora scritti: fix layer (S), latch di bank della P, bank switching Z80
-(NEO-ZMC), bus ADPCM, controller SDRAM, registri verso l'MCU.
+Non ancora scritti: interfaccia fisica verso l'MCU (SPI/QSPI), ADPCM vero
+(bus `SDPAD/SDRAD`), gestione dell'avvio (`ROMWAIT`, `PDTACK`), vincoli di pin e
+temporizzazione, controller SDRAM con bank interleaving.
 
 ## Come si prova
 
 ```sh
-python3 gateware/tests/test_cfetch.py                # dati casuali
-python3 gateware/tests/test_cfetch.py C_canonico.bin # dati reali (ordine MAME)
+python3 gateware/tests/test_cfetch.py                # serializzatore sprite, dati casuali
+python3 gateware/tests/test_cfetch.py C_canonico.bin # idem con dati reali (ordine MAME)
+python3 gateware/tests/test_modules.py               # fix, banco P, Z80 banking
+python3 gateware/tests/test_system.py                # tutto insieme con controller e chip SDRAM
+python3 gateware/model/rtl_budget.py                 # traffico di picco sull'RTL, latenze
 ```
+
+`tests/run_all.sh` li esegue se `iverilog` è installato.
 
 Il test converte i dati canonici nel layout `sdram1` con `tools/ngpk.py`, li
 carica nel modello di SDRAM del testbench e confronta, per 400 righe di tile
@@ -46,11 +59,9 @@ Scelte di modello non verificate su hardware:
   veloce; la polarità e il fronte reali del `12M` sono un punto aperto.
 * La dimensione della C ROM è una potenza di due (`tile_mask`); per altre
   dimensioni serve un modulo vero, che Geolith applica con `%`.
-* Il modello di SDRAM ha latenza fissa e nessun refresh né conflitto di riga:
-  il test dice solo che la logica funziona con una latenza data, non che una
-  SDRAM reale basti. Questo è il prossimo controllo (modello con ritardi di
-  riga/banco e refresh) e il punto in cui il budget di 333 ns per lettura
-  verrà messo alla prova.
+* Nel test del solo serializzatore il modello di SDRAM ha latenza fissa; il
+  comportamento con una SDRAM e un controller veri è nella sezione "Misura
+  sull'RTL" (sotto), che però resta una simulazione.
 
 ## Budget della SDRAM (modello, `gateware/model/sdram_budget.py`)
 
@@ -87,3 +98,40 @@ traslatori 5 V, tRAS/precharge fini sui cambi di comando e l'arbitraggio vero
 del controller: va rifatto sul controller RTL quando esiste. Le scelte che
 restano utili: SDRAM a 133 MHz (non 100) per avere più margine sul caso peggiore
 di latenza, priorità a C e S rispetto al resto.
+
+## Misura sull'RTL (`gateware/model/rtl_budget.py`)
+
+Stesso traffico di picco della tabella sopra, ma sull'RTL vero (`ng_top` +
+`ng_sdram` + chip comportamentale con controllo dei tempi), 2 ms simulati. Il
+controller attuale esegue **una richiesta alla volta** e non fa bank
+interleaving, quindi è peggiore del modello ideale.
+
+| Clock SDRAM | Sprite, latenza max / media | Fix | 68k (P) | Z80 (M) | V | Note |
+|-------------|----------------------------|-----|---------|---------|---|------|
+| 144 MHz | 285 / 138 ns | 285 ns | 326 ns | 590 ns | 667 ns | tutte le richieste servite, 0 errori di protocollo |
+| 96 MHz | 375 / 232 ns | 375 ns | 323 ns (25 % delle letture perse) | 740 ns | 11 µs (V affamata) | controller saturo |
+
+(Latenza = dal fronte di `PCK1B`/`PCK2B` o dalla richiesta fino al dato pronto.)
+
+Letture: con questo controller **servono almeno circa 133-144 MHz** (parti
+speed grade -6/-7); a 96 MHz il traffico di picco lo satura. Il modello ideale
+dava il 10-14 % di uso del bus, ma presupponeva richieste sovrapposte su banchi
+diversi: se serve più margine o un clock più basso, il passo successivo è un
+controller con bank interleaving. Resta aperta, come prima, la scadenza reale
+tra `PCK1B` e `LOAD`, che non si ricava da simulazione.
+
+Il controller legge 8 byte per richiesta (burst da 4 beat su 16 bit) perché
+sprite e fix leggono esattamente 8 byte allineati; per P, M e V si usa solo la
+metà o il byte che serve. La scrittura è di una parola da 32 bit per volta
+(`dqm` maschera le altre): ~12 cicli per parola, ampiamente sopra i requisiti
+del caricamento da SD.
+
+## Come vengono verificati i collegamenti con il firmware
+
+`tests/test_system.py` programma i registri come fa `firmware/ngsd_loader.c`
+(`SIZE_x`, `ADDR_x`, poi `CTRL.RUN`) e controlla: scrittura e rilettura SDRAM
+dall'MCU, 240 mezze righe sprite, 150 letture fix, 174 letture 68k con latch di
+bank, 113 letture Z80 con bank switching e 60 letture V. Il modello della SDRAM
+segnala violazioni di tRCD/tRC/tRP/tRFC, refresh mancato e indirizzi fuori
+memoria; con una violazione introdotta apposta (tRCD di un ciclo più corto) il
+test fallisce, quindi i controlli sono attivi.

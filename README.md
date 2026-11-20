@@ -15,7 +15,7 @@ aperti.
 | `tools/ngpk.py` | Packer/ispettore (Python 3, nessuna dipendenza) |
 | `recipes/` | Ricette: Samurai Shodown III (esempio) e `spf2ng` (il gioco del progetto) |
 | `docs/GATEWARE.md` | Stato del gateware Verilog e di cosa dimostrano i test |
-| `gateware/` | RTL e testbench (Icarus Verilog), per ora il fetch/serializzatore degli sprite |
+| `gateware/` | RTL e testbench (Icarus Verilog): sprite, fix, banco P, bank Z80, controller SDRAM, arbitro, top |
 | `firmware/` | Parser `.ngpk` e loader in C99 portabile, più test su PC |
 | `tests/` | Test del packer e script che esegue tutto |
 

@@ -29,6 +29,8 @@ make -s -C "$ROOT/firmware" clean
 if command -v iverilog >/dev/null 2>&1; then
     echo "== gateware, sprite fetch/serializer"
     python3 -I "$ROOT/gateware/tests/test_cfetch.py"
+    python3 -I "$ROOT/gateware/tests/test_modules.py"
+    python3 -I "$ROOT/gateware/tests/test_system.py"
 else
     echo "== gateware tests skipped (iverilog not installed)"
 fi
