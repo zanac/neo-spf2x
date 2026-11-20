@@ -31,6 +31,21 @@ module ng_top #(parameter BOOT_HEX = "", parameter MVS = 0) (
     input  wire [31:0] v_offs,
     output wire [7:0]  v_data,
     output wire        v_valid,
+    // YM2610 ADPCM-A bus (SDRMPX, SDROE, SDRAD0-7, SDRA8/9, SDRA20-23)
+    input  wire        ar_mpx, ar_oe_n,
+    input  wire [7:0]  ar_ad_in,
+    input  wire [1:0]  ar_a89,
+    input  wire [3:0]  ar_a2023,
+    output wire [7:0]  ar_ad_out,
+    output wire        ar_drive,
+    output wire [15:0] ar_late,
+    // YM2610 ADPCM-B bus (SDPMPX, SDPOE, SDPAD0-7, SDPA8-11)
+    input  wire        ap_mpx, ap_oe_n,
+    input  wire [7:0]  ap_ad_in,
+    input  wire [3:0]  ap_a811,
+    output wire [7:0]  ap_ad_out,
+    output wire        ap_drive,
+    output wire [15:0] ap_late,
     // MCU register bus
     input  wire        reg_wr,
     input  wire [7:0]  reg_addr,
@@ -98,9 +113,9 @@ module ng_top #(parameter BOOT_HEX = "", parameter MVS = 0) (
     wire [11:0] s_mask = pow2m1(size[3] >> 5);
 
     // ---- SDRAM chain ---------------------------------------------------------
-    wire [5:0]   cl_req;
-    wire [191:0] cl_addr;
-    wire [5:0]   cl_rvalid;
+    wire [7:0]   cl_req;
+    wire [255:0] cl_addr;
+    wire [7:0]   cl_rvalid;
     wire [63:0]  cl_rdata;
     wire         rq_valid, rq_we, rq_ready, rs_valid;
     wire [31:0]  rq_addr, rq_wdata;
@@ -134,6 +149,9 @@ module ng_top #(parameter BOOT_HEX = "", parameter MVS = 0) (
     assign cl_req[3] = p_mreq; assign cl_addr[127:96]  = p_ma;
     assign cl_req[4] = m_mreq; assign cl_addr[159:128] = m_ma;
     assign cl_req[5] = v_mreq; assign cl_addr[191:160] = v_ma;
+    wire ar_mreq, ap_mreq; wire [31:0] ar_ma, ap_ma;
+    assign cl_req[6] = ar_mreq; assign cl_addr[223:192] = ar_ma;
+    assign cl_req[7] = ap_mreq; assign cl_addr[255:224] = ap_ma;
 
     generate if (MVS == 0) begin : g_aes
         ng_cfetch cf(.clk(clk), .rst(rst | ~run_r), .tick12(tick12), .pck1b(pck1b),
@@ -170,4 +188,22 @@ module ng_top #(parameter BOOT_HEX = "", parameter MVS = 0) (
     ng_rdport vport(.clk(clk), .rst(rst), .rd(v_rd), .offs(v_offs),
         .base(addr[5]), .mem_req(v_mreq), .mem_addr(v_ma),
         .mem_valid(cl_rvalid[5]), .mem_rdata(cl_rdata), .data(v_data), .valid(v_valid));
+
+    // ---- ADPCM-A / ADPCM-B buses (docs/TIMING.md s.11), V region ---------------
+    wire ar_rd, ap_rd; wire [31:0] ar_off, ap_off;
+    wire [7:0] ar_rdat, ap_rdat; wire ar_rval, ap_rval;
+    ng_adpcm #(.B(0)) adpa(.clk(clk), .rst(rst | ~run_r), .mpx(ar_mpx), .oe_n(ar_oe_n),
+        .ad_in(ar_ad_in), .a_mid({2'b00, ar_a89}), .a_top(ar_a2023), .ad_out(ar_ad_out),
+        .ad_drive(ar_drive), .rd(ar_rd), .offs(ar_off), .rdata(ar_rdat),
+        .rvalid(ar_rval), .late(ar_late));
+    ng_rdport aport(.clk(clk), .rst(rst), .rd(ar_rd), .offs(ar_off), .base(addr[5]),
+        .mem_req(ar_mreq), .mem_addr(ar_ma), .mem_valid(cl_rvalid[6]),
+        .mem_rdata(cl_rdata), .data(ar_rdat), .valid(ar_rval));
+    ng_adpcm #(.B(1)) adpb(.clk(clk), .rst(rst | ~run_r), .mpx(ap_mpx), .oe_n(ap_oe_n),
+        .ad_in(ap_ad_in), .a_mid(ap_a811), .a_top(4'd0), .ad_out(ap_ad_out),
+        .ad_drive(ap_drive), .rd(ap_rd), .offs(ap_off), .rdata(ap_rdat),
+        .rvalid(ap_rval), .late(ap_late));
+    ng_rdport bport(.clk(clk), .rst(rst), .rd(ap_rd), .offs(ap_off), .base(addr[5]),
+        .mem_req(ap_mreq), .mem_addr(ap_ma), .mem_valid(cl_rvalid[7]),
+        .mem_rdata(cl_rdata), .data(ap_rdat), .valid(ap_rval));
 endmodule

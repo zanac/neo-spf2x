@@ -59,7 +59,7 @@ On the MVS the gateware is **simpler** on the sprite side: it just answers with 
 ## 4. Effects on I/O and components
 
 182 console signals + 39 SDRAM + ≥ 6 MCU link (SPI) + ~6 misc ≈ **233-241**: on the ECP5
-LFE5U-45F caBGA554 (245 I/O) at most ~12 pins are left. For the MVS it is therefore
-advisable to plan the **LFE5U-85F in the same caBGA554** (259 I/O, same footprint): on the
-same PCB one or the other is fitted. Details in `docs/COMPONENTS.md` and board architecture
+LFE5U-45F caBGA554 (245 I/O) at most ~12 pins are left. It fits the 45F, with little margin
+(the SDRAM control pins that the design does not use are tied off). The **LFE5U-85F in the same
+caBGA554** (259 I/O, same footprint) is a drop-in fallback: on the same PCB one or the other is fitted. Details in `docs/COMPONENTS.md` and board architecture
 in `docs/PCB.md`.

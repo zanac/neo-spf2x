@@ -162,7 +162,7 @@ Tempi di caricamento stimati (non misurati): per 35 MiB circa 6 s con SPI a
    lato console (AES) servono circa 220 I/O: FPGA proposta ECP5 LFE5U-45F in
    caBGA554 (245 I/O), SDRAM 64 MiB a ≥ 133 MHz, RP2040, circa 11 traslatori
    a 16 bit. Restano aperti meccanica, direzioni dei segnali e corrente 5 V.
-   L'MVS (182 segnali) richiede la LFE5U-85F nello stesso package.
+   Anche l'MVS (182 segnali) ci sta nel 45F con poco margine; la 85F nello stesso package è il ripiego.
 7. **Selezione del gioco.** Per ora un file di configurazione sulla SD più un
    pulsante per passare al successivo. Un menu eseguito dalla Neo Geo stessa è
    possibile ma è un'altra fase.

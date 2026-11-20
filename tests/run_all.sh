@@ -33,6 +33,7 @@ if command -v iverilog >/dev/null 2>&1; then
     python3 -I "$ROOT/gateware/tests/test_modules.py"
     python3 -I "$ROOT/gateware/tests/test_system.py"
     python3 -I "$ROOT/gateware/tests/test_mvs.py"
+    python3 -I "$ROOT/gateware/tests/test_io.py"
 else
     echo "== gateware tests skipped (iverilog not installed)"
 fi

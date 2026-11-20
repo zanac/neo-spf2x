@@ -203,3 +203,17 @@ funzionante, non una misura del connettore. La licenza GPL e i dettagli di
 Il connettore MVS dà al serializzatore, che sta in console, i dati paralleli `CR0-CR31` e i
 tre clock `24M`, `12M`, `8M`; vedi `docs/it/MVS.md`. Tutto ciò che le sezioni 2-5 dicono su
 *cosa* viene letto vale invariato; il serializzatore della sezione 8 non serve in cartuccia.
+
+## 11. Bus ADPCM (YM2610)
+
+Dalla wiki, non misurato. L'YM2610 legge la V ROM su due bus multiplexati:
+
+* **ADPCM-A**: `SDRAD[7:0]` + `SDRA8/9` portano `A[9:0]` sul fronte di salita di `SDRMPX` e
+  `A[19:10]` sul fronte di discesa; `SDRA[23:20]` sono diretti. Una lettura ogni ≈ 1,5 µs.
+* **ADPCM-B**: `SDPAD[7:0]` + `SDPA8-11` portano `A[11:0]` sul fronte di salita e `A[23:12]`
+  su quello di discesa. Una lettura ogni ≈ 250 ns.
+* Con `SDROE`/`SDPOE` basso la ROM pilota i dati; il chip li campiona sul fronte di salita.
+
+`ng_adpcm.v` cattura le due metà, chiede il byte alla SDRAM e risponde nella finestra; se il
+dato è in ritardo lo conta in `late` invece di bloccarsi. I margini in nanosecondi sono
+**non verificati** (la latenza SDRAM rispetto ai ≈ 250 ns della porta B è il punto stretto).

@@ -14,6 +14,8 @@ Generic Verilog, no vendor primitives. Simulation with Icarus Verilog (`iverilog
 | `gateware/rtl/ng_mvs_pdec.v` | MVS: `ROMOE*/PORTOE*/PORTWE*` + `A1-A19` → address/strobe interface of `ng_pbank` |
 | `gateware/rtl/ng_zmc.v` | Z80: M ROM bank switching (4 windows, 512 KiB reach, identity map at reset) |
 | `gateware/rtl/ng_boot.v` | 1 KiB boot RAM served to the 68k in stub mode (`docs/BOOT.md`), written by the MCU, preloadable from `BOOT_HEX` |
+| `gateware/rtl/ng_adpcm.v` | YM2610 ADPCM bus snooper (parameter `B`: 0 = A, 1 = B): rebuilds the 24-bit address from the multiplexed `SDRAD/SDPAD` lines (`docs/TIMING.md` §11), reads the byte from the V region and drives the data bus while `SDROE/SDPOE` is low; `late` counts missed deadlines |
+| `gateware/rtl/ng_mcu_spi.v` | SPI slave towards the MCU (1-bit or quad write): register writes, run flag, and a window on the MCU SDRAM port; reads are limited to clk/8 by the synchroniser latency |
 | `gateware/rtl/ng_rdport.v` | Byte read from a region (M port and V port of the ADPCM data, abstract) |
 | `gateware/rtl/ng_sdram.v` | 16-bit SDR SDRAM controller, 4 banks, CL3, burst 4, closed page, one request at a time; init and refresh |
 | `gateware/rtl/ng_arb.v`, `ng_fifo4.v` | Fixed-priority arbiter MCU > C > S > P > M > V with a 4-request FIFO per port |

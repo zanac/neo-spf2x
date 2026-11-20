@@ -35,3 +35,17 @@ collegamento. Con l'FPGA su una sola scheda non servono traslatori sul ponte.
 4. Verifica contro una cartuccia reale prima della produzione (continuità e
    direzioni), assorbimento da 5 V, tenuta delle uscite in Hi-Z con `SLOTCS`
    (MVS) e durante la configurazione FPGA.
+
+## Generatore hardware (`hardware/gen/`)
+
+I file KiCad 7 si generano da script, così le schede seguono le tabelle dei pin.
+
+* `fpga_db.py`: database delle ball e impronta BGA554 dal CSV ufficiale Lattice
+  (`hardware/fpga/`).
+* `design.py`, `kisch.py`: modello di netlist e scrittore di schemi; `selftest_sch.py` verifica
+  che lo schema generato esporti la stessa netlist (la CLI di KiCad 7 non ha l'ERC).
+* Contorni scheda e dita di contatto vengono da `hardware/outline.json` e `hardware/footprints/`.
+
+**Stato:** scrittore di schemi e impronta FPGA fatti; netlist delle schede, piazzamento,
+routing e DRC per AES/MVS × CHA/PROG non ancora fatti. Tutto ciò che si genera richiede una
+revisione umana prima della produzione.

@@ -7,6 +7,12 @@ and writes hardware/mvs_pins.csv.  No hand transcription.
     git clone https://github.com/jwestfall69/neogeo-diag-mvs-cha
     python3 -I hardware/extract_kicad_pins.py PROG.kicad_sch CHA.kicad_sch
 where CHA.kicad_sch is neo-zmc-board/neogeo-diag-mvs-cha-neo-zmc-board.kicad_sch
+`ctype` is the KiCad electrical type as seen FROM THE CONSOLE: `output` = driven by the
+console (an input for the cartridge), `input` = driven by the cartridge,
+`bidirectional`, `power_out`, `unspecified` (NC).
+
+For the AES: give --aes LIB.kicad_sym instead (neogeo-diag.kicad_sym of the library, symbols
+neogeo-aes-{prog,cha}-{a,b}-side-edge) to write hardware/aes_pins.csv.
 """
 import csv, os, re, sys
 
@@ -33,12 +39,31 @@ def pins(path, name):
     out = []
     for pm in re.finditer(r"\(pin \w+ \w+", blk):
         pb = block(blk, pm.start())
+        if not re.search(r'\(number "([^"]+)"', pb):
+            continue                      # unnamed placeholder pin in the AES CHA B symbol
         out.append((int(re.search(r'\(number "([^"]*)"', pb).group(1)),
-                    re.search(r'\(name "([^"]*)"', pb).group(1)))
+                    re.search(r'\(name "([^"]*)"', pb).group(1),
+                    pm.group(0).split()[1]))
     return sorted(out)
 
 
+def main_aes(path):
+    rows = []
+    for board in ("prog", "cha"):
+        for side in ("a", "b"):
+            for num, nm, ty in pins(path, f"neogeo-aes-{board}-{side}-side-edge"):
+                rows.append((board.upper(), side.upper(), num, nm, ty))
+    with open(os.path.join(HERE, "aes_pins.csv"), "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["board", "side", "pin", "signal", "ctype"])
+        w.writerows(rows)
+    print(len(rows), "AES pins written")
+    return 0
+
+
 def main(argv):
+    if len(argv) == 3 and argv[1] == "--aes":
+        return main_aes(argv[2])
     if len(argv) != 3:
         print(__doc__)
         return 2
@@ -46,11 +71,11 @@ def main(argv):
     for board, path in (("PROG", argv[1]), ("CHA", argv[2])):
         for side in ("a", "b"):
             sym = f"neogeo-diag:neogeo-mvs-{board.lower()}-{side}-side-edge"
-            for num, nm in pins(path, sym):
-                rows.append((board, side.upper(), num, nm))
+            for num, nm, ty in pins(path, sym):
+                rows.append((board, side.upper(), num, nm, ty))
     with open(os.path.join(HERE, "mvs_pins.csv"), "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["board", "side", "pin", "signal"])
+        w.writerow(["board", "side", "pin", "signal", "ctype"])
         w.writerows(rows)
     print(len(rows), "pins written")
     return 0

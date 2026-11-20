@@ -49,7 +49,7 @@ def run_sim(img, cmds, tb="tb_top", extra=()):
         f.write(cmds)
     rtl = [os.path.join(HERE, "..", "rtl", n) for n in
            ("ng_top.v", "ng_arb.v", "ng_fifo4.v", "ng_sdram.v", "ng_cfetch.v",
-            "ng_sfetch.v", "ng_pbank.v", "ng_zmc.v", "ng_rdport.v", "ng_boot.v")]
+            "ng_sfetch.v", "ng_pbank.v", "ng_zmc.v", "ng_rdport.v", "ng_boot.v", "ng_adpcm.v", "ng_cfetch_mvs.v")]
     tbd = os.path.join(HERE, "..", "tb")
     vvp = os.path.join(d, "s.vvp")
     subprocess.run(["iverilog", "-g2012", "-o", vvp, os.path.join(tbd, tb + ".v"),

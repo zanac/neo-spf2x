@@ -192,3 +192,17 @@ close before writing the gateware.
 The MVS connector gives the console-side serializer parallel `CR0-CR31` data and the
 three clocks `24M`, `12M`, `8M`; see `docs/MVS.md`. Everything in sections 2-5 about *what*
 is read applies unchanged; section 8's serializer is not needed on the cartridge.
+
+## 11. ADPCM bus (YM2610)
+
+From the wiki, not measured. The YM2610 reads the V ROM on two multiplexed buses:
+
+* **ADPCM-A**: `SDRAD[7:0]` + `SDRA8/9` carry `A[9:0]` at the rising edge of `SDRMPX` and
+  `A[19:10]` at the falling edge; `SDRA[23:20]` are direct. One read every ≈ 1.5 µs.
+* **ADPCM-B**: `SDPAD[7:0]` + `SDPA8-11` carry `A[11:0]` at the rising edge and `A[23:12]` at
+  the falling edge. One read every ≈ 250 ns.
+* With `SDROE`/`SDPOE` low the ROM drives the data; the chip latches on the rising edge.
+
+`ng_adpcm.v` latches the two halves, requests the byte from SDRAM and answers inside the
+window; if the data is late it counts it in `late` instead of stalling. The nanosecond
+margins are **unverified** (SDRAM latency against the ≈ 250 ns of port B is the tight one).

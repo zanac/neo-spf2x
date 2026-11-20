@@ -60,6 +60,7 @@ Il bus `P0-P23` e `FIXD0-7` sono invariati (il fix usa `PCK2B` e `2H1`).
 
 182 segnali console + 39 SDRAM + ≥ 6 collegamento MCU (SPI) + ~6 varie
 ≈ **233-241**: sull'ECP5 LFE5U-45F caBGA554 (245 I/O) restano al massimo ~12 pin.
-Per l'MVS conviene quindi prevedere la **LFE5U-85F nello stesso caBGA554** (259 I/O,
-stessa impronta): nello stesso PCB si monta l'una o l'altra. Dettagli in
+Ci sta nel 45F, con poco margine
+(i pin di controllo SDRAM non usati dal progetto sono fissati a un livello). La **LFE5U-85F nello stesso
+caBGA554** (259 I/O, stessa impronta) è un ripiego compatibile: nello stesso PCB si monta l'una o l'altra. Dettagli in
 `docs/it/COMPONENTS.md` e architettura delle schede in `docs/it/PCB.md`.

@@ -34,3 +34,17 @@ the FPGA on a single board no translators are needed on the bridge.
 3. 6-8 layer layout with controlled-impedance SDRAM, ENIG finish, 45° chamfer.
 4. Verification against a real cartridge before production (continuity and directions), 5 V
    draw, outputs held high-Z with `SLOTCS` (MVS) and during FPGA configuration.
+
+## Hardware generator (`hardware/gen/`)
+
+KiCad 7 files are generated from scripts, so that the boards follow the pin tables.
+
+* `fpga_db.py`: ball database and BGA554 footprint from the official Lattice CSV
+  (`hardware/fpga/`).
+* `design.py`, `kisch.py`: netlist model and schematic writer; `selftest_sch.py` checks that
+  the generated schematic exports to the same netlist (KiCad 7's CLI has no ERC).
+* Board outlines and edge fingers come from `hardware/outline.json` and `hardware/footprints/`.
+
+**Status:** schematic writer and FPGA footprint done; board netlists, placement, routing and
+DRC for AES/MVS × CHA/PROG are not done yet. Anything generated needs a human design review
+before fabrication.

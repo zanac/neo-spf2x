@@ -156,7 +156,7 @@ with 4-bit SDIO.
    signals (AES) about 220 I/Os are needed: proposed FPGA ECP5 LFE5U-45F in caBGA554
    (245 I/O), 64 MiB SDRAM at ≥ 133 MHz, RP2040, about 11 16-bit translators. The
    mechanics, signal directions and 5 V current remain open. The MVS (182 signals)
-   needs the LFE5U-85F in the same package.
+   also fits the 45F with little margin; the 85F in the same package is the fallback.
 7. **Game selection.** For now a configuration file on the SD plus a button to move
    to the next one. A menu run by the Neo Geo itself is possible but is another phase.
 8. **License.** GPL-3.0-or-later (`LICENSE` file). The reference core (NeoGeo_MiSTer)

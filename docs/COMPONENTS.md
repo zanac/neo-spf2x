@@ -24,7 +24,8 @@ verified (`basis` column of `hardware/signals.csv`).
 
 The MVS has **182 signals** (`docs/MVS.md`): 182 + 39 + ~12 + ~8 ≈ **241** with the
 parallel MCU bus, ≈ 233 with an SPI link. On the 45F caBGA554 (245 I/O) very few pins are
-left: for the MVS the **LFE5U-85F in the same caBGA554** (259 I/O) is planned.
+left (≈ 12), but it fits: the final pin count is fixed by the assignment in `hardware/gen`.
+The **LFE5U-85F in the same caBGA554** (259 I/O) stays as a drop-in fallback if it does not.
 
 ## 2. FPGA
 

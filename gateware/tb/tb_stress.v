@@ -19,7 +19,11 @@ module tb_stress;
     wire sd_cs_n, sd_ras_n, sd_cas_n, sd_we_n, sd_dq_oe; wire [1:0] sd_ba, sd_dqm;
     wire [12:0] sd_a; wire [15:0] sd_dq_o, chip_dq;
 
-    ng_top dut(.clk(clk), .rst(rst), .tick12(tick12), .pck1b(pck1b), .pck2b(pck2b),
+    wire [7:0] ar_ad_out, ap_ad_out; wire ar_drive, ap_drive; wire [15:0] ar_late, ap_late;
+    ng_top dut(.ar_mpx(1'b0), .ar_oe_n(1'b1), .ar_ad_in(8'd0), .ar_a89(2'd0), .ar_a2023(4'd0),
+        .ar_ad_out(ar_ad_out), .ar_drive(ar_drive), .ar_late(ar_late),
+        .ap_mpx(1'b0), .ap_oe_n(1'b1), .ap_ad_in(8'd0), .ap_a811(4'd0),
+        .ap_ad_out(ap_ad_out), .ap_drive(ap_drive), .ap_late(ap_late),.clk(clk), .rst(rst), .tick12(tick12), .pck1b(pck1b), .pck2b(pck2b),
         .ca4(ca4), .load(load), .h(h), .s2h1(s2h1), .pbus(pbus), .gad(gad), .gbd(gbd),
         .dota(dota), .dotb(dotb), .fixd(fixd), .c_rdy0(c_rdy0), .c_rdy1(c_rdy1),
         .s_fvalid(s_fvalid), .p_a(p_a), .p_rd(p_rd), .p_wr(1'b0), .p_wdata(16'h0),

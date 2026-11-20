@@ -14,6 +14,8 @@ Icarus Verilog (`iverilog`, `vvp`); i test girano solo se `iverilog` è installa
 | `gateware/rtl/ng_mvs_pdec.v` | MVS: `ROMOE*/PORTOE*/PORTWE*` + `A1-A19` → interfaccia indirizzo/strobe di `ng_pbank` |
 | `gateware/rtl/ng_zmc.v` | Z80: bank switching della M ROM (4 finestre, reach 512 KiB, mappa identità al reset) |
 | `gateware/rtl/ng_boot.v` | Boot RAM da 1 KiB servita al 68k in modalità stub (`docs/it/BOOT.md`), scritta dall'MCU, precaricabile da `BOOT_HEX` |
+| `gateware/rtl/ng_adpcm.v` | Spia il bus ADPCM dello YM2610 (parametro `B`: 0 = A, 1 = B): ricostruisce l'indirizzo a 24 bit dalle linee multiplexate `SDRAD/SDPAD` (`docs/it/TIMING.md` §11), legge il byte dalla regione V e pilota il bus dati finché `SDROE/SDPOE` è basso; `late` conta le scadenze mancate |
+| `gateware/rtl/ng_mcu_spi.v` | Slave SPI verso l'MCU (scrittura a 1 bit o quad): scritture di registri, flag di run e finestra sulla porta SDRAM dell'MCU; le letture sono limitate a clk/8 dalla latenza dei sincronizzatori |
 | `gateware/rtl/ng_rdport.v` | Lettura di un byte da una regione (porta M e porta V dei dati ADPCM, astratta) |
 | `gateware/rtl/ng_sdram.v` | Controller SDR SDRAM 16 bit, 4 banchi, CL3, burst 4, pagina chiusa, una richiesta alla volta; init e refresh |
 | `gateware/rtl/ng_arb.v`, `ng_fifo4.v` | Arbitro a priorità fissa MCU > C > S > P > M > V con FIFO di 4 richieste per porta |
