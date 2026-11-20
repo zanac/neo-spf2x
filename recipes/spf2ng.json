@@ -1,0 +1,14 @@
+{
+  "title": "spf2ng",
+  "ngh": 0,
+  "mapper": "plain",
+  "mapper_arg": 0,
+  "base_dir": ".",
+  "regions": {
+    "P": [{"op": "swap16", "files": ["spf2ng.p1", "spf2ng.p2"]}],
+    "C": [{"op": "interleave8", "files": ["spf2ng.c1", "spf2ng.c2"]}],
+    "S": [{"files": ["spf2ng.s1"]}],
+    "M": [{"files": ["spf2ng.m1"]}],
+    "V": [{"files": ["spf2ng.v1"]}]
+  }
+}

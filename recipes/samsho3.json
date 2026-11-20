@@ -1,0 +1,19 @@
+{
+  "title": "Samurai Shodown III",
+  "ngh": 87,
+  "mapper": "plain",
+  "mapper_arg": 0,
+  "base_dir": ".",
+  "regions": {
+    "P": [{"op": "swap16",
+           "files": ["087-epr.ep1", "087-epr.ep2", "087-epr.ep3",
+                     "087-epr.ep4", "087-p5.p5"]}],
+    "C": [{"op": "interleave8", "files": ["087-c1.c1", "087-c2.c2"]},
+          {"op": "interleave8", "files": ["087-c3.c3", "087-c4.c4"]},
+          {"op": "interleave8", "files": ["087-c5.c5", "087-c6.c6"]},
+          {"op": "interleave8", "files": ["087-c7.c7", "087-c8.c8"]}],
+    "S": [{"files": ["087-s1.s1"]}],
+    "M": [{"files": ["087-m1.m1"]}],
+    "V": [{"files": ["087-v1.v1", "087-v2.v2"]}]
+  }
+}
