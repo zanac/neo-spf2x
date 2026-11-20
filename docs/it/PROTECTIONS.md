@@ -28,7 +28,11 @@ CS scelto dal bit 26 dell'indirizzo). La scheda ha la seconda impronta e la sua 
 * **In fase di pacchetto (PC, nessun hardware):** i chip che si limitano a rimescolare i dati.
   CMC42/CMC50 (decifratura di C, S e M1, S estratta da C), PCM2 (V), gli scramble statici della P
   (famiglie SMA, KOF2002, PVC, KOF98) sono permutazioni fatte una volta da `tools/ngpk.py`. Il
-  `.ngpk` contiene poi dati in chiaro e usa il mapper 0.
+  `.ngpk` contiene poi dati in chiaro e usa il mapper 0. L'articolo di IQ_132 del 2024 (Patreon,
+  *Cracking a 25-Year-Old NeoGeo Encryption Mystery*) dice che l'"extra XOR" del CMC e un byte di
+  configurazione (dimensione sprite, tipo di banking del fix) stanno nella M1 ROM attorno a
+  `$F800-$FBFF`: il packer può leggerli invece di tenere una tabella per gioco. Non dice nulla su
+  come il chip segua linea e colonna per il banking del fix.
 * **Logica a runtime nell'FPGA (nessuna modifica alla PCB):** tutto ciò che sta sui bus che
   l'FPGA già vede (bus P, `D`, `ROMOE`, `PORTOE`, `PORTWE`, linee di attesa).
 * **Non ancora capito abbastanza:** elencato nella sezione 4.
@@ -56,10 +60,13 @@ le parole che l'LSPC mette sul bus P.
 
 ## 4. Rischi aperti
 
-* Banking del fix: la cartuccia non vede l'indirizzo VRAM, mentre `neo_cmc.v` lo usa. Che lo stesso
-  stato si possa ricostruire dal solo flusso `PCK2B` non risulta dalle fonti che ho letto. Circa 28
-  giochi originali dipendono da questo. Serve una cattura con analizzatore logico o lo schema del
-  PRO-CT0/CMC.
+* Banking del fix: la wiki NeoGeo (*Fix bankswitching*) dice che i dati di banco stanno in `$7500-$75FF`,
+  che l'LSPC continua a leggere come tile fix fuori dall'area visibile, quindi arrivano alla cartuccia
+  nel flusso `PCK2B`/bus P; il tipo 1 memorizza la parola flag `$0200` più una parola di banco per
+  linea, il tipo 2 dà 2 bit per tile (6 tile per parola, bit invertiti). Nessuna fonte che ho trovato dice
+  come il chip sappia linea e colonna di ogni lettura: `neo_cmc.v` prende l'indirizzo VRAM dall'interno
+  dell'LSPC e usa un'euristica con un marcatore. Circa 28 giochi originali dipendono da questo. Una
+  cattura di `PCK2B` su una cartuccia vera lo risolve.
 * Metal Slug X (un gioco) e SBP (un bootleg) hanno protezioni non documentate.
 * Tempi: ogni lettura di `$2xxxxx` va servita entro il ciclo del 68k (le linee `PWAIT`/`PDTACK` esistono).
 * Ancora niente gira: il campo mapper del formato è l'aggancio, i moduli di gateware non esistono.

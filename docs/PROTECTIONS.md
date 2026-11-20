@@ -28,7 +28,10 @@ chosen by address bit 26). The board has the second footprint and its `CS` line.
 * **Pack time (PC, no hardware):** the chips that only scramble data. CMC42/CMC50 (C, S and
   M1 decryption, S extracted from C), PCM2 (V), the static P scrambles (SMA, KOF2002, PVC
   families, KOF98) are permutations done once by `tools/ngpk.py`. The `.ngpk` then holds plain
-  data and needs mapper 0.
+  data and needs mapper 0. IQ_132's 2024 write-up (Patreon, *Cracking a 25-Year-Old NeoGeo
+  Encryption Mystery*) says the CMC "extra XOR" and a configuration byte (sprite size, fix banking
+  type) are stored in the M1 ROM around `$F800-$FBFF`: the packer can read them instead of keeping a
+  per-game table. It says nothing about how the chip tracks line and column for fix banking.
 * **Runtime logic in the FPGA (no PCB change):** everything below lives on the buses the FPGA
   already sees (P bus, `D`, `ROMOE`, `PORTOE`, `PORTWE`, the wait lines).
 * **Not understood well enough yet:** listed in section 4.
@@ -55,9 +58,13 @@ RAM address; the cartridge only sees the words the LSPC puts on the P bus.
 
 ## 4. Open risks
 
-* Fix banking: the cartridge cannot see the VRAM address. `neo_cmc.v` uses it. Whether the same
-  state can be rebuilt from the `PCK2B` stream alone is not shown by the sources I read. About 28
-  original games depend on it. It needs a logic analyzer capture or a PRO-CT0/CMC schematic.
+* Fix banking: the NeoGeo wiki (*Fix bankswitching*) says the bank data sits in `$7500-$75FF`, which
+  the LSPC keeps fetching as fix tiles outside the visible area, so it reaches the cartridge on the
+  `PCK2B`/P bus stream; type 1 latches flag word `$0200` plus a bank word per line, type 2 gives 2 bits
+  per tile (6 tiles per word, bits inverted). What no source I found says is how the chip knows the line
+  and column of each fetch: `neo_cmc.v` takes the VRAM address from inside the LSPC and uses a
+  marker heuristic. About 28 original games depend on it. A capture of `PCK2B` on a real cartridge
+  settles it.
 * Metal Slug X (one game) and SBP (a bootleg) have undocumented protections.
 * Timing: every `$2xxxxx` read must be answered inside the 68k cycle (`PWAIT`/`PDTACK` lines exist).
 * Nothing runs yet: the mapper field of the format is the hook, the gateware modules do not exist.
