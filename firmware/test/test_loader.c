@@ -153,6 +153,14 @@ int main(int argc, char **argv)
     ngpk_info_t info;
     int err;
 
+    CHECK(ngsd_profile_check(&NGSD_PROFILE_64M) == 0, "64M profile layout");
+    CHECK(ngsd_profile_check(&NGSD_PROFILE_128M) == 0, "128M profile layout");
+    {   /* the same game loads with the 128M profile as long as it has the sdram1 layout */
+        err = run(pack, &NGSD_PROFILE_128M, 4096, &m, &info);
+        CHECK(err == NGPK_OK, "load with ngsd-128M: %s", ngpk_strerror(err));
+        free_mock(&m);
+    }
+
     /* 1. good load with several transfer buffer sizes -------------------- */
     for (unsigned s = 0; s < sizeof sizes / sizeof *sizes; s++) {
         printf("load, buffer %u bytes\n", sizes[s]);

@@ -84,8 +84,11 @@ Totale 64 MiB. Samurai Shodown III (esempio fornito) occupa 35,25 MiB: P 3, C 26
 V 6, S 0,125, M 0,125. Il gioco `spf2ng` occupa 45,4 MiB (P 5, C 32, V 8, S 0,125,
 M 0,25) e ci sta, con 6 MiB liberi sulla C.
 Giochi con C oltre 38 MiB o con ADPCM-B separata vengono rifiutati dal loader
-con un errore esplicito (`NGPK_E_PROFILE`). Con 128 MiB di SDRAM il profilo
-potrebbe crescere, ma è un'altra scheda.
+con un errore esplicito (`NGPK_E_PROFILE`). La scheda CHA ha una seconda impronta SDRAM (128 MiB) per il profilo
+`ngsd-128M` (`firmware/ngsd_loader.c`): P 16 a `0`, V 16 a `0x1000000`, VB 4 a
+`0x2000000`, S 1 a `0x2400000`, M 1 a `0x2500000`, C 64 a `0x2600000` (MiB). Copre ogni
+set della lista di MAME (il più grande 90 MiB, `docs/it/PROTECTIONS.md`); lato gateware è
+`ng_sdram.v` con `addr[26]` che sceglie il chip.
 
 ## 4. Contratto firmware ↔ FPGA
 

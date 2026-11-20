@@ -17,7 +17,7 @@ Generic Verilog, no vendor primitives. Simulation with Icarus Verilog (`iverilog
 | `gateware/rtl/ng_adpcm.v` | YM2610 ADPCM bus snooper (parameter `B`: 0 = A, 1 = B): rebuilds the 24-bit address from the multiplexed `SDRAD/SDPAD` lines (`docs/TIMING.md` §11), reads the byte from the V region and drives the data bus while `SDROE/SDPOE` is low; `late` counts missed deadlines |
 | `gateware/rtl/ng_mcu_spi.v` | SPI slave towards the MCU (1-bit or quad write): register writes, run flag, and a window on the MCU SDRAM port; reads are limited to clk/8 by the synchroniser latency |
 | `gateware/rtl/ng_rdport.v` | Byte read from a region (M port and V port of the ADPCM data, abstract) |
-| `gateware/rtl/ng_sdram.v` | 16-bit SDR SDRAM controller, 4 banks, CL3, burst 4, closed page, one request at a time; init and refresh |
+| `gateware/rtl/ng_sdram.v` | 16-bit SDR SDRAM controller, 4 banks, CL3, burst 4, closed page, one request at a time; init and refresh; up to two chips (`sd_cs_n[1:0]`, chip = `addr[26]`) |
 | `gateware/rtl/ng_arb.v`, `ng_fifo4.v` | Fixed-priority arbiter MCU > C > S > P > M > V with a 4-request FIFO per port |
 | `gateware/rtl/ng_top.v` | Integration: MCU registers (the map of `firmware/ngsd_loader.h`), tile masks derived from `SIZE_x`, bases from `ADDR_x`, MCU SDRAM port, boot RAM and stub mode; parameter `MVS` (0 = AES, 1 = MVS) and output `cr[31:0]` |
 | `gateware/tb/` | Testbenches and behavioural SDRAM model with timing and refresh checks |
@@ -34,6 +34,7 @@ python3 gateware/tests/test_cfetch.py                # sprite serializer, random
 python3 gateware/tests/test_cfetch.py C_canonical.bin # same with real data (MAME order)
 python3 gateware/tests/test_modules.py               # fix, P bank, Z80 banking
 python3 gateware/tests/test_system.py                # everything together with controller and SDRAM chip
+python3 gateware/tests/test_sdram2.py                # two SDRAM chips (ngsd-128M)
 python3 gateware/tests/test_mvs.py                   # MVS: CR fetch, P strobes decoder, ng_top MVS=0/1
 python3 gateware/model/rtl_budget.py                 # peak traffic on the RTL, latencies
 ```

@@ -96,7 +96,8 @@ Il campo `mapper` indica quale logica da cartuccia serve al gioco.
 * `0 = plain`: solo il latch di bank-switching della P (scrittura nella finestra
   `$200000-$2FFFFF`, bit D0/D1 verso A20/A21 della P2, azzerato al reset) e la
   logica base della cartuccia AES. È l'unico mapper supportato oggi.
-* Valori riservati per il futuro: protezioni e cifrature (SMA, PCM2, CMC, PVC...).
+* Valori riservati per il futuro: protezioni e cifrature (SMA, PCM2, CMC, PVC...;
+  il catalogo e l'ordine proposto sono in `docs/it/PROTECTIONS.md`).
   Packer e loader rifiutano mapper sconosciuti invece di caricare un gioco che
   non funzionerebbe.
 

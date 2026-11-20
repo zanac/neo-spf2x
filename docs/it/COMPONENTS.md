@@ -54,7 +54,8 @@ PLL, vincoli e SDRAM I/O).
 
 ## 3. Memoria e MCU
 
-* **SDRAM:** 512 Mbit (64 MiB) × 16, SDR, in classe 143-166 MHz (grade -6/-7).
+* **SDRAM:** uno o due chip da 512 Mbit (64 MiB) × 16 sullo stesso bus (il secondo chip dà
+  128 MiB, un pin `CS` in più, serve a 77 set su 307 della lista di MAME), SDR, in classe 143-166 MHz (grade -6/-7).
   Famiglie compatibili da controllare per disponibilità: ISSI IS42S16320,
   Alliance AS4C32M16SB, Micron MT48LC32M16A2. Il controller attuale richiede
   ≥ ~133-144 MHz (`docs/it/GATEWARE.md`).

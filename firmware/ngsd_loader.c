@@ -18,6 +18,38 @@ const ngsd_profile_t NGSD_PROFILE_64M = {
     },
 };
 
+/* ngsd-128M: two 64 MiB chips (CS by address bit 26).  Sized for the largest set in MAME's
+ * list (90 MiB: P 9, C 64, V 16).  VB lets the 21 games with a separate ADPCM-B ROM load. */
+const ngsd_profile_t NGSD_PROFILE_128M = {
+    .name = "ngsd-128M",
+    .sdram_bytes = 128u * MiB,
+    .slot = {
+        [NGPK_R_P]  = { .base = 0x0000000u, .cap = 16u * MiB },
+        [NGPK_R_V]  = { .base = 0x1000000u, .cap = 16u * MiB },
+        [NGPK_R_VB] = { .base = 0x2000000u, .cap =  4u * MiB },
+        [NGPK_R_S]  = { .base = 0x2400000u, .cap =  1u * MiB, .layout = 1 },
+        [NGPK_R_M]  = { .base = 0x2500000u, .cap =  1u * MiB },
+        [NGPK_R_C]  = { .base = 0x2600000u, .cap = 64u * MiB, .layout = 1 },
+    },
+};
+
+int ngsd_profile_check(const ngsd_profile_t *p)
+{
+    for (int i = 1; i < NGPK_R_COUNT; i++) {
+        const ngsd_slot_t *a = &p->slot[i];
+        if (a->cap == 0)
+            continue;
+        if (a->base > p->sdram_bytes || a->cap > p->sdram_bytes - a->base)
+            return -1;
+        for (int j = i + 1; j < NGPK_R_COUNT; j++) {
+            const ngsd_slot_t *b = &p->slot[j];
+            if (b->cap && a->base < b->base + b->cap && b->base < a->base + a->cap)
+                return -1;
+        }
+    }
+    return 0;
+}
+
 static int check_profile(const ngpk_info_t *info, const ngsd_profile_t *prof)
 {
     if (!ngpk_find(info, NGPK_R_P) || !ngpk_find(info, NGPK_R_C))

@@ -53,7 +53,8 @@ constraints and SDRAM I/O change).
 
 ## 3. Memory and MCU
 
-* **SDRAM:** 512 Mbit (64 MiB) × 16, SDR, 143-166 MHz class (grade -6/-7). Compatible
+* **SDRAM:** one or two chips of 512 Mbit (64 MiB) × 16 on the same bus (second chip = 128 MiB,
+  one more `CS` pin, needed by 77 of 307 sets in MAME's list), SDR, 143-166 MHz class (grade -6/-7). Compatible
   families to check for availability: ISSI IS42S16320, Alliance AS4C32M16SB, Micron
   MT48LC32M16A2. The current controller needs ≥ ~133-144 MHz (`docs/GATEWARE.md`).
 * **MCU:** RP2040. Its PIO can drive the 4-bit microSD and an 8-bit parallel bus towards

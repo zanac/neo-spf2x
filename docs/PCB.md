@@ -11,7 +11,7 @@ Proposal, the same for both formats:
 
 | Board | Content |
 |-------|---------|
-| **CHA** | FPGA (ECP5 caBGA554), 64 MiB SDRAM, configuration flash, 5 V↔3.3 V translators for the CHA signals |
+| **CHA** | FPGA (ECP5 caBGA554), 64 MiB SDRAM (+ second footprint for 128 MiB), configuration flash, 5 V↔3.3 V translators for the CHA signals |
 | **PROG** | translators for the PROG signals, RP2040, microSD slot, LED/button |
 | Link | 3.3 V board-to-board between PROG and CHA (about 83 PROG signals + SPI/power) |
 
@@ -57,7 +57,8 @@ driven by the FPGA; one `OE_*_N` per board, pulled up so that the translators ar
 the FPGA is configured. PROG and CHA are joined by two 2×40 1.27 mm connectors (signals
 interleaved with ground, 3.3 V from CHA, 5 V from both edges). SDRAM `CKE` is tied high. On the
 MVS the PROG copies of `RESET`/`SLOTCS` are left unconnected (the CHA copies are used).
-FPGA I/O used: AES 214, MVS 234 of 245; the MVS needs 7 bank-8 balls that double as
+The second SDRAM shares the bus and has its own `SDR_CS1_N` (pulled up when the chip is not
+fitted). FPGA I/O used: AES 215, MVS 235 of 245; the MVS needs 7 bank-8 balls that double as
 configuration pins (last resort in `assign_balls`).
 
 **Not verified (from memory, check against datasheets before fabrication):** the

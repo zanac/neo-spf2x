@@ -16,7 +16,7 @@ module tb_stress;
     reg reg_wr = 0; reg [7:0] reg_addr = 0; reg [31:0] reg_wdata = 0;
     wire [3:0] gad, gbd; wire dota, dotb; wire [7:0] fixd; wire c_rdy0, c_rdy1, s_fvalid;
     wire [15:0] p_rdata; wire p_rvalid; wire [7:0] z_data, v_data; wire z_valid, v_valid;
-    wire sd_cs_n, sd_ras_n, sd_cas_n, sd_we_n, sd_dq_oe; wire [1:0] sd_ba, sd_dqm;
+    wire [1:0] sd_cs_n; wire sd_ras_n, sd_cas_n, sd_we_n, sd_dq_oe; wire [1:0] sd_ba, sd_dqm;
     wire [12:0] sd_a; wire [15:0] sd_dq_o, chip_dq;
 
     wire [7:0] ar_ad_out, ap_ad_out; wire ar_drive, ap_drive; wire [15:0] ar_late, ap_late;
@@ -36,7 +36,7 @@ module tb_stress;
         .sd_ba(sd_ba), .sd_a(sd_a), .sd_dqm(sd_dqm), .sd_dq_o(sd_dq_o),
         .sd_dq_oe(sd_dq_oe), .sd_dq_i(chip_dq));
     sim_sdr #(.TRCD(TRCD), .TRC(TRC), .TRP(TRP), .TRFC(TRFC), .REFI(REFI), .CL(CL))
-        chip(.clk(clk), .cs_n(sd_cs_n), .ras_n(sd_ras_n), .cas_n(sd_cas_n),
+        chip(.clk(clk), .cs_n(sd_cs_n[0]), .ras_n(sd_ras_n), .cas_n(sd_cas_n),
         .we_n(sd_we_n), .ba(sd_ba), .a(sd_a), .dqm(sd_dqm), .dq_i(sd_dq_o),
         .dq_oe(sd_dq_oe), .dq_o(chip_dq));
     defparam dut.sdr.TRCD = TRCD, dut.sdr.CL = CL, dut.sdr.TRC = TRC,

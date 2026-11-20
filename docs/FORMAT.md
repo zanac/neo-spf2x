@@ -95,7 +95,7 @@ The `mapper` field says which cartridge logic the game needs.
   window, bits D0/D1 towards A20/A21 of P2, cleared at reset) and the basic AES
   cartridge logic. It is the only mapper supported today.
 * Values reserved for the future: protections and encryptions (SMA, PCM2, CMC,
-  PVC...). Packer and loader reject unknown mappers instead of loading a game that
+  PVC...; the catalogue and the proposed order are in `docs/PROTECTIONS.md`). Packer and loader reject unknown mappers instead of loading a game that
   would not work.
 
 ## JSON recipe (packer input)

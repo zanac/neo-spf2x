@@ -270,11 +270,11 @@ SDR_PINS = {  # pin -> name   (standard x16 SDR pinout)
     30: "A5", 31: "A6", 32: "A7", 33: "A8", 34: "A9", 35: "A11", 36: "A12", 37: "CKE", 38: "CLK", 39: "UDQM",
     40: "NC", 41: "VSS", 42: "DQ8", 43: "VDDQ", 44: "DQ9", 45: "DQ10", 46: "VSSQ", 47: "DQ11", 48: "DQ12",
     49: "VDDQ", 50: "DQ13", 51: "DQ14", 52: "VSSQ", 53: "DQ15", 54: "VSS"}
-SDR_NET = {"WE#": "SDR_WE_N", "CAS#": "SDR_CAS_N", "RAS#": "SDR_RAS_N", "CS#": "SDR_CS_N", "LDQM": "SDR_DQM0",
+SDR_NET = {"WE#": "SDR_WE_N", "CAS#": "SDR_CAS_N", "RAS#": "SDR_RAS_N", "LDQM": "SDR_DQM0",
            "UDQM": "SDR_DQM1", "CLK": "SDR_CLK", "BA0": "SDR_BA0", "BA1": "SDR_BA1"}
 
 
-def add_sdram(b):
+def add_sdram(b, cs_net):
     pins, left, right = {}, [], []
     for n, nm in SDR_PINS.items():
         if nm in ("VDD", "VDDQ"):
@@ -289,6 +289,8 @@ def add_sdram(b):
             net, et = f"SDR_DQ{nm[2:]}", "bidirectional"
         elif nm.startswith("A"):
             net, et = f"SDR_A{nm[1:]}", "input"
+        elif nm == "CS#":
+            net, et = cs_net, "input"
         else:
             net, et = SDR_NET[nm], "input"
         pins[str(n)] = net
@@ -385,7 +387,7 @@ def build_cha(fmt):
 
     clocks = [s for s in ("24M", "12M", "8M", "68KCLKB") if s in cha_names or s in prog]
     sdr = ([f"SDR_A{i}" for i in range(13)] + ["SDR_BA0", "SDR_BA1"] + [f"SDR_DQ{i}" for i in range(16)] +
-           ["SDR_DQM0", "SDR_DQM1", "SDR_CLK", "SDR_CS_N", "SDR_RAS_N", "SDR_CAS_N", "SDR_WE_N"])
+           ["SDR_DQM0", "SDR_DQM1", "SDR_CLK", "SDR_CS0_N", "SDR_CS1_N", "SDR_RAS_N", "SDR_CAS_N", "SDR_WE_N"])
     dirs = sorted({BIDIR_DIR[s] for s, _ in cha if s in BIDIR_DIR})
     cha_sig = [s for s, _ in cha if s not in clocks]
     groups = [(("PL",), sdr), (("PL",), SPI_NETS + ["MCU_RUN", "MCU_INT"]),
@@ -418,7 +420,10 @@ def build_cha(fmt):
             {"1": "FLASH_CS_N", "2": "FLASH_DO", "3": "FLASH_IO2", "4": GND, "5": "FLASH_DI", "6": "FLASH_CLK",
              "7": "FLASH_IO3", "8": V3})
     b.c(V3, GND)
-    add_sdram(b)
+    add_sdram(b, "SDR_CS0_N")
+    add_sdram(b, "SDR_CS1_N")        # second chip: 128 MiB (ngsd-128M); may be left unpopulated
+    b.r("SDR_CS1_N", V3, "10k")      # deselected when absent / FPGA not configured
+    b.r("SDR_CS0_N", V3, "10k")
     add_power_cha(b)
     # console translators (CHA fingers)
     def edge_net(s):

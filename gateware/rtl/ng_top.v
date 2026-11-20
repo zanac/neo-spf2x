@@ -59,7 +59,8 @@ module ng_top #(parameter BOOT_HEX = "", parameter MVS = 0) (
     output wire        mcu_rvalid,
     output wire [31:0] mcu_rdata,
     // SDRAM chip
-    output wire        sd_cs_n, sd_ras_n, sd_cas_n, sd_we_n,
+    output wire [1:0]  sd_cs_n,
+    output wire        sd_ras_n, sd_cas_n, sd_we_n,
     output wire [1:0]  sd_ba,
     output wire [12:0] sd_a,
     output wire [1:0]  sd_dqm,
@@ -203,7 +204,7 @@ module ng_top #(parameter BOOT_HEX = "", parameter MVS = 0) (
         .ad_in(ap_ad_in), .a_mid(ap_a811), .a_top(4'd0), .ad_out(ap_ad_out),
         .ad_drive(ap_drive), .rd(ap_rd), .offs(ap_off), .rdata(ap_rdat),
         .rvalid(ap_rval), .late(ap_late));
-    ng_rdport bport(.clk(clk), .rst(rst), .rd(ap_rd), .offs(ap_off), .base(addr[5]),
+    ng_rdport bport(.clk(clk), .rst(rst), .rd(ap_rd), .offs(ap_off), .base(size[6] != 0 ? addr[6] : addr[5]),   // ADPCM-B: own ROM (VB) if loaded
         .mem_req(ap_mreq), .mem_addr(ap_ma), .mem_valid(cl_rvalid[7]),
         .mem_rdata(cl_rdata), .data(ap_rdat), .valid(ap_rval));
 endmodule

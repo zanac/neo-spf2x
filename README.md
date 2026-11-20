@@ -25,6 +25,7 @@ on a console; the PCBs are not designed yet (the partition is in `docs/PCB.md`).
 | `gateware/` | RTL and testbenches (Icarus Verilog): sprite (AES and MVS), fix, P bank, Z80 bank, SDRAM controller, arbiter, top |
 | `docs/BOOT.md` | How the console sees the cartridge during loading (boot stub) |
 | `boot/` | 68k source of the stub (`stub.S`) and binary |
+| `docs/PROTECTIONS.md` | Protected games and special cartridges (from MAME): what each needs, 128 MiB, open risks |
 | `docs/COMPONENTS.md` | I/O budget, choice of FPGA, SDRAM, MCU, translators and open hardware points |
 | `hardware/` | `gen_signals.py`, `signals.csv` (162 AES signals), `signals_mvs.csv` (184 MVS pins), `mvs_pins.csv`, `extract_kicad_pins.py` |
 | `firmware/` | `.ngpk` parser and loader in portable C99, plus PC tests |

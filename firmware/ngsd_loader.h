@@ -39,6 +39,10 @@ typedef struct {
 /* 64 MiB of SDRAM; P 8, V 16, S 1, M 1, C 38 MiB.  Design choice of this
  * project, not a hardware requirement: change it together with the gateware. */
 extern const ngsd_profile_t NGSD_PROFILE_64M;
+/* 128 MiB (two chips): every set in MAME's neogeo list fits, including ADPCM-B ROMs (VB). */
+extern const ngsd_profile_t NGSD_PROFILE_128M;
+/* 0 if the slots lie inside the SDRAM and do not overlap */
+int ngsd_profile_check(const ngsd_profile_t *p);
 
 /* ---- hardware abstraction ---------------------------------------------- */
 typedef struct {

@@ -25,6 +25,7 @@ questo README) e le due versioni si aggiornano insieme** (`tests/check_docs.py`)
 | `gateware/` | RTL e testbench (Icarus Verilog): sprite (AES e MVS), fix, banco P, bank Z80, controller SDRAM, arbitro, top |
 | `docs/it/BOOT.md` | Come la console vede la cartuccia durante il caricamento (stub di avvio) |
 | `boot/` | Sorgente 68k dello stub (`stub.S`) e binario |
+| `docs/it/PROTECTIONS.md` | Giochi protetti e cartucce speciali (da MAME): cosa serve a ciascuno, 128 MiB, rischi aperti |
 | `docs/it/COMPONENTS.md` | Budget di I/O, scelta di FPGA, SDRAM, MCU, traslatori e punti aperti dell'hardware |
 | `hardware/` | `gen_signals.py`, `signals.csv` (162 segnali AES), `signals_mvs.csv` (184 pin MVS), `mvs_pins.csv`, `extract_kicad_pins.py` |
 | `firmware/` | Parser `.ngpk` e loader in C99 portabile, più test su PC |

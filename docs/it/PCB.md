@@ -11,7 +11,7 @@ contatti. Proposta, uguale per i due formati:
 
 | Scheda | Contenuto |
 |--------|-----------|
-| **CHA** | FPGA (ECP5 caBGA554), SDRAM 64 MiB, flash di configurazione, traslatori 5 V↔3,3 V per i segnali CHA |
+| **CHA** | FPGA (ECP5 caBGA554), SDRAM 64 MiB (+ seconda impronta per 128 MiB), flash di configurazione, traslatori 5 V↔3,3 V per i segnali CHA |
 | **PROG** | traslatori per i segnali PROG, RP2040, slot microSD, LED/pulsante |
 | Collegamento | board-to-board a 3,3 V tra PROG e CHA (circa 83 segnali PROG + SPI/alimentazione) |
 
@@ -58,7 +58,8 @@ dall'FPGA; un `OE_*_N` per scheda, con pull-up, così i traslatori restano in al
 finché l'FPGA non è configurata. PROG e CHA sono unite da due connettori 2×40 a 1,27 mm (segnali
 alternati a massa, 3,3 V dalla CHA, 5 V da entrambi i bordi). `CKE` della SDRAM è fissato alto.
 Sull'MVS le copie PROG di `RESET`/`SLOTCS` restano scollegate (si usano quelle della CHA).
-I/O FPGA usati: AES 214, MVS 234 su 245; l'MVS usa 7 ball del banco 8 che fanno anche da pin
+La seconda SDRAM condivide il bus e ha un suo `SDR_CS1_N` (con pull-up se il chip non è montato).
+I/O FPGA usati: AES 215, MVS 235 su 245; l'MVS usa 7 ball del banco 8 che fanno anche da pin
 di configurazione (ultima risorsa in `assign_balls`).
 
 **Non verificato (scritto a memoria, da controllare sui datasheet prima di produrre):** il

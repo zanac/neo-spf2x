@@ -6,6 +6,9 @@
 //
 // Byte address map (64 MiB part, e.g. 32M x 16):
 //   a16 = addr[25:1];  col = a16[9:0], bank = a16[11:10], row = a16[24:12]
+// Two chips share the bus (profile ngsd-128M): addr[26] selects the chip with
+// sd_cs_n[addr[26]].  Init and refresh go to both chips at once (CS low on both);
+// ACTIVE/READ/WRITE only to the selected one.  With one chip fitted use sd_cs_n[0].
 // Request: raise req_valid with req_we/req_addr/req_wdata; transfer happens on
 // the edge where req_valid & req_ready.  rsp_valid pulses when a read's data
 // (rsp_rdata, 64 bit) is ready or a write has been issued completely.
@@ -24,7 +27,8 @@ module ng_sdram #(
     output reg         rsp_valid,
     output reg  [63:0] rsp_rdata,
     // chip pins
-    output reg         sd_cs_n, sd_ras_n, sd_cas_n, sd_we_n,
+    output reg  [1:0]  sd_cs_n,
+    output reg         sd_ras_n, sd_cas_n, sd_we_n,
     output reg  [1:0]  sd_ba,
     output reg  [12:0] sd_a,
     output reg  [1:0]  sd_dqm,
@@ -54,7 +58,7 @@ module ng_sdram #(
     endtask
 
     always @(posedge clk) begin
-        sd_cs_n <= 1'b0; sd_ras_n <= 1'b1; sd_cas_n <= 1'b1; sd_we_n <= 1'b1;
+        sd_cs_n <= 2'b00; sd_ras_n <= 1'b1; sd_cas_n <= 1'b1; sd_we_n <= 1'b1;
         sd_dqm <= 2'b00; sd_dq_oe <= 1'b0; rsp_valid <= 1'b0;
         if (rst) begin
             st <= S_INIT; cnt <= 0; refc <= 0; refp <= 0; gap <= 0;
@@ -84,6 +88,7 @@ module ng_sdram #(
                         cmd(0, 0, 1); refp <= 0; st <= S_RFC; cnt <= 0;
                     end else if (req_valid) begin
                         cmd(0, 1, 1);                       // ACTIVE
+                        sd_cs_n <= req_addr[26] ? 2'b01 : 2'b10;
                         sd_ba <= req_addr[12:11]; sd_a <= req_addr[25:13];
                         l_we <= req_we; l_addr <= req_addr; l_wd <= req_wdata;
                         st <= S_ACT; cnt <= 1;
@@ -96,6 +101,7 @@ module ng_sdram #(
                         sd_ba <= l_addr[12:11];
                         sd_a  <= {2'b00, 1'b1, l_addr[10:3], 2'b00};
                         wcnt  <= 0;
+                        sd_cs_n <= l_addr[26] ? 2'b01 : 2'b10;
                         if (l_we) begin
                             cmd(1, 0, 0); sd_dq_oe <= 1'b1;
                             sd_dq_o <= l_addr[2] ? 16'h0 : l_wd[15:0];

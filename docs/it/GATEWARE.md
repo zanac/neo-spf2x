@@ -17,7 +17,7 @@ Icarus Verilog (`iverilog`, `vvp`); i test girano solo se `iverilog` è installa
 | `gateware/rtl/ng_adpcm.v` | Spia il bus ADPCM dello YM2610 (parametro `B`: 0 = A, 1 = B): ricostruisce l'indirizzo a 24 bit dalle linee multiplexate `SDRAD/SDPAD` (`docs/it/TIMING.md` §11), legge il byte dalla regione V e pilota il bus dati finché `SDROE/SDPOE` è basso; `late` conta le scadenze mancate |
 | `gateware/rtl/ng_mcu_spi.v` | Slave SPI verso l'MCU (scrittura a 1 bit o quad): scritture di registri, flag di run e finestra sulla porta SDRAM dell'MCU; le letture sono limitate a clk/8 dalla latenza dei sincronizzatori |
 | `gateware/rtl/ng_rdport.v` | Lettura di un byte da una regione (porta M e porta V dei dati ADPCM, astratta) |
-| `gateware/rtl/ng_sdram.v` | Controller SDR SDRAM 16 bit, 4 banchi, CL3, burst 4, pagina chiusa, una richiesta alla volta; init e refresh |
+| `gateware/rtl/ng_sdram.v` | Controller SDR SDRAM 16 bit, 4 banchi, CL3, burst 4, pagina chiusa, una richiesta alla volta; init e refresh; fino a due chip (`sd_cs_n[1:0]`, chip = `addr[26]`) |
 | `gateware/rtl/ng_arb.v`, `ng_fifo4.v` | Arbitro a priorità fissa MCU > C > S > P > M > V con FIFO di 4 richieste per porta |
 | `gateware/rtl/ng_top.v` | Integrazione: registri dell'MCU (la mappa di `firmware/ngsd_loader.h`), maschere dei tile ricavate da `SIZE_x`, basi da `ADDR_x`, porta SDRAM dell'MCU, boot RAM e modalità stub; parametro `MVS` (0 = AES, 1 = MVS) e uscita `cr[31:0]` |
 | `gateware/tb/` | Testbench e modello comportamentale della SDRAM con controlli di temporizzazione e refresh |
@@ -35,6 +35,7 @@ python3 gateware/tests/test_cfetch.py                # serializzatore sprite, da
 python3 gateware/tests/test_cfetch.py C_canonico.bin # idem con dati reali (ordine MAME)
 python3 gateware/tests/test_modules.py               # fix, banco P, Z80 banking
 python3 gateware/tests/test_system.py                # tutto insieme con controller e chip SDRAM
+python3 gateware/tests/test_sdram2.py                # due chip SDRAM (ngsd-128M)
 python3 gateware/tests/test_mvs.py                   # MVS: fetch CR, decoder strobe P, ng_top MVS=0/1
 python3 gateware/model/rtl_budget.py                 # traffico di picco sull'RTL, latenze
 ```

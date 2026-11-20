@@ -14,7 +14,7 @@ module tb_top;
     wire [3:0] gad, gbd; wire dota, dotb; wire [7:0] fixd; wire c_rdy0, c_rdy1, s_fvalid;
     wire [15:0] p_rdata; wire p_rvalid; wire [7:0] z_data, v_data; wire z_valid, v_valid;
     wire run, mcu_full, mcu_rvalid; wire [31:0] mcu_rdata;
-    wire sd_cs_n, sd_ras_n, sd_cas_n, sd_we_n, sd_dq_oe; wire [1:0] sd_ba, sd_dqm;
+    wire [1:0] sd_cs_n; wire sd_ras_n, sd_cas_n, sd_we_n, sd_dq_oe; wire [1:0] sd_ba, sd_dqm;
     wire [12:0] sd_a; wire [15:0] sd_dq_o, sd_dq_i;
 
     wire [7:0] ar_ad_out, ap_ad_out; wire ar_drive, ap_drive; wire [15:0] ar_late, ap_late;
@@ -35,7 +35,7 @@ module tb_top;
         .sd_ba(sd_ba), .sd_a(sd_a), .sd_dqm(sd_dqm), .sd_dq_o(sd_dq_o),
         .sd_dq_oe(sd_dq_oe), .sd_dq_i(sd_dq_i));
     wire [15:0] chip_dq;
-    sim_sdr chip(.clk(clk), .cs_n(sd_cs_n), .ras_n(sd_ras_n), .cas_n(sd_cas_n),
+    sim_sdr chip(.clk(clk), .cs_n(sd_cs_n[0]), .ras_n(sd_ras_n), .cas_n(sd_cas_n),
         .we_n(sd_we_n), .ba(sd_ba), .a(sd_a), .dqm(sd_dqm), .dq_i(sd_dq_o),
         .dq_oe(sd_dq_oe), .dq_o(chip_dq));
     assign sd_dq_i = chip_dq;
