@@ -394,8 +394,8 @@ def link_pin_map(fmt):
     return m
 
 
-LINK_FP_CHA = "NG:Hirose_DF12_DF12C3.0-80DS-0.5V_2x40_P0.50mm_Vertical"           # receptacle, 3.0 mm mated
-LINK_FP_PROG = "Connector_Hirose:Hirose_DF12_DF12E3.0-80DP-0.5V_2x40_P0.50mm_Vertical"   # plug
+LINK_FP_CHA = "NG:Hirose_DF12NB3.0-80DS-0.5V51_2x40_P0.50mm_Vertical"           # receptacle, 3.0 mm mated
+LINK_FP_PROG = "NG:Hirose_DF12NB3.0-80DP-0.5V51_2x40_P0.50mm_Vertical"   # plug
 
 
 def add_link(b, fmt, side):
@@ -454,6 +454,8 @@ def build_cha(fmt):
     b.r("FLASH_CS_N", V3, "4.7k")
     for n in ("OE_CHA_N", "OE_PRG_N"):
         b.r(n, V3, "10k")
+    for n in dirs:                                  # DIR floats while the FPGA is not configured: keep B->A (OE is high anyway)
+        b.r(n, GND, "10k")
     b.r("SPI_CS_N", V3, "10k")
     b.add("D", "Device:LED", "DONE", "LED_SMD:LED_0603_1608Metric", {"1": "LED_K", "2": "LED_A"})
     b.r("LED_A", "FPGA_DONE", "1k"); b.r("LED_K", GND, "0")

@@ -55,8 +55,9 @@ I file KiCad 7 si generano da script, così le schede seguono le tabelle dei pin
 **Scelte nella netlist.** Un SN74ALVC164245 a 16 bit ogni due gruppi da 8 segnali con la stessa
 direzione; i bus bidirezionali (`D0-15`, `SDRAD`, `SDPAD`, `SDD`) hanno una rete `DIR_*` pilotata
 dall'FPGA; un `OE_*_N` per scheda, con pull-up, così i traslatori restano in alta impedenza
-finché l'FPGA non è configurata. PROG e CHA sono unite da due connettori Hirose DF12 a 80 contatti, passo 0,5 mm (presa
-`DF12(3.0)-80DS-0.5V` sulla CHA, spina `DF12(3.0)-80DP-0.5V` sulla PROG; segnali alternati a
+finché l'FPGA non è configurata. Le reti `DIR_*` hanno pull-down da 10k (SCAS416P "Power-Up Considerations", p. 7: prima VCCA,
+OE con pull-up a VCCA, DIR basso salvo serva A→B; la rampa del 5 V della console non è nota, da verificare al banco). PROG e CHA sono unite da due connettori Hirose DF12 a 80 contatti, passo 0,5 mm (presa
+`DF12NB(3.0)-80DS-0.5V(51)` sulla CHA, spina `DF12NB(3.0)-80DP-0.5V(51)` sulla PROG; segnali alternati a
 massa, 3,3 V dalla CHA, 5 V da entrambi i bordi). `CKE` della SDRAM è fissato alto.
 Sull'MVS le copie PROG di `RESET`/`SLOTCS` restano scollegate (si usano quelle della CHA).
 La seconda SDRAM condivide il bus e ha un suo `SDR_CS1_N` (con pull-up se il chip non è montato).
@@ -67,16 +68,16 @@ di configurazione (ultima risorsa in `assign_balls`).
 (jwestfall69, pubblico dominio), lo spessore è 1,6 mm come quelle schede, tutti i componenti stanno
 sul lato anteriore. Lo spazio tra PROG e CHA e l'altezza libera nel guscio non sono in nessuna
 fonte raggiungibile (la pagina del negozio richiede un captcha). Perciò la pila è fatta bassa
-quanto i componenti permettono: la coppia Hirose DF12(3.0) è alta 3,0 mm da accoppiata (catalogo,
-0,3 A per contatto, 50 cicli), quindi le due schede stanno a 6,2 mm di spessore totale, invece
+quanto i componenti permettono: la coppia Hirose DF12NB(3.0) è alta 3,0 +0,2 mm da accoppiata (disegno Hirose; i vecchi
+DF12(3.0)-80DS/DP(86) sono fuori produzione dal 2021 e questo è il sostituto compatibile; 0,3 A per
+contatto, 50 cicli), quindi le due schede stanno al massimo a 6,4 mm di spessore totale, invece
 degli 8,5 mm dei connettori 2×40 a 1,27 mm. `checks.py` verifica che la PROG, capovolta attorno
 a un asse verticale, abbia i suoi 160 pad di collegamento sui pad della CHA con lo stesso numero
 e la stessa rete, che i fori di fissaggio coincidano e che i componenti che si fronteggiano
-sommino meno di 2,7 mm (caso peggiore ora 2,5 mm: FPGA sotto l'RP2040). Resta da fare a una
-persona: il footprint della presa a 80 contatti l'ho generato io (`hardware/gen/hirose_fp.py`,
-la libreria KiCad ha solo la spina) estendendo il disegno standard a 60 contatti, e il disegno
-quotato Hirose (pad, linguette di fissaggio) non era scaricabile da qui: confrontarlo prima di
-ordinare. 0,3 A per contatto bastano per l'alimentazione della PROG (3 contatti a 3,3 V, 2 a
+sommino meno di 2,9 mm (caso peggiore ora 2,5 mm: FPGA sotto l'RP2040). I footprint sono generati dai disegni di piazzole Hirose (`hardware/gen/hirose_fp.py`): pad 0,3 × 1,6 mm
+con passo 0,5 mm, righe a 2,0 mm, due pad di fissaggio 0,8 × 1,8 mm, stencil da 120 µm. La
+numerazione dei pad non è in quei disegni: segue la libreria standard di KiCad, quindi va confrontata
+con il catalogo Hirose prima di ordinare. La disponibilità dei DF12NB non è stata verificata. 0,3 A per contatto bastano per l'alimentazione della PROG (3 contatti a 3,3 V, 2 a
 5 V). Misura un guscio vero prima di ordinare.
 
 **Verificato sui datasheet (nov 2026):** il pinout TSSOP-48 e i range di alimentazione

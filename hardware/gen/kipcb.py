@@ -222,9 +222,9 @@ def build(design, board_key, path, anchors, layers=6):
 # memory/datasheets, not measured; the shell clearance itself is NOT known (docs/PCB.md).
 HEIGHT = {"BGA-554": 1.6, "TSSOP-48": 1.2, "TSOP-II-54": 1.2, "SOT-223": 1.8, "SOT-23-5": 1.2,
           "SOIC-8W": 2.7, "C_1206": 1.8, "C_0805": 1.4, "C_0603": 0.9, "CP_EIA-3528": 2.1, "L_0603": 0.9, "C_0402": 0.6, "R_0402": 0.5, "L_0805": 1.4,
-          "LED_0603": 0.8, "SW_SPST_PTS810": 2.0, "DF12C3.0-80DS": 1.5, "DF12E3.0-80DP": 1.5,
+          "LED_0603": 0.8, "SW_SPST_PTS810": 2.0, "DF12NB3.0-80DS": 2.2, "DF12NB3.0-80DP": 2.3,
           "PinHeader_2x05": 3.0, "Crystal": 0.9, "microSD": 1.9, "QFN-56": 0.9, "L_Taiyo": 1.8, "PinHeader_1x0": 2.5, "L_": 1.4}
-LINK_MATED = 3.0         # mm, Hirose DF12(3.0) mated height (catalogue; excludes solder paste)
+LINK_MATED = 3.2         # mm, Hirose DF12NB(3.0) mated height 3 +0.2/0 (drawing; excludes solder paste)
 HEIGHT_LIMIT = 8.0       # mm, planning value for the whole link stack and any single part
 
 

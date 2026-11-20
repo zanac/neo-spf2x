@@ -61,8 +61,8 @@ def link_mating(cha, prog):
         if xm is None:
             xm = mm(c.GetPosition().x) + mm(p.GetPosition().x)
             dy = mm(c.GetPosition().y) - mm(p.GetPosition().y)
-        cp = {q.GetNumber(): q for q in c.Pads() if q.GetNumber()}
-        pp = {q.GetNumber(): q for q in p.Pads() if q.GetNumber()}
+        cp = {q.GetNumber(): q for q in c.Pads() if q.GetNumber().isdigit()}
+        pp = {q.GetNumber(): q for q in p.Pads() if q.GetNumber().isdigit()}
         worst = 0.0
         for k, q in pp.items():
             x = xm - mm(q.GetPosition().x)
