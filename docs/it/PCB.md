@@ -46,6 +46,26 @@ I file KiCad 7 si generano da script, così le schede seguono le tabelle dei pin
   che lo schema generato esporti la stessa netlist (la CLI di KiCad 7 non ha l'ERC).
 * Contorni scheda e dita di contatto vengono da `hardware/outline.json` e `hardware/footprints/`.
 
-**Stato:** scrittore di schemi e impronta FPGA fatti; netlist delle schede, piazzamento,
-routing e DRC per AES/MVS × CHA/PROG non ancora fatti. Tutto ciò che si genera richiede una
+* `boards.py`: netlist delle quattro schede (AES/MVS × CHA/PROG) da `signals*.csv` e
+  `*_pins.csv`; `build_sch.py` scrive `hardware/out/*.kicad_sch`, `*_fpga_pins.csv` (rete → ball)
+  e `*_cha.lpf` (vincoli dei pin), e verifica ogni schema con un giro di netlist.
+* `tests/test_hw_netlist.py`: ogni segnale della console deve andare dito → traslatore → ball
+  dell'FPGA (via link per la PROG), nessuna ball usata due volte.
+
+**Scelte nella netlist.** Un SN74ALVC164245 a 16 bit ogni due gruppi da 8 segnali con la stessa
+direzione; i bus bidirezionali (`D0-15`, `SDRAD`, `SDPAD`, `SDD`) hanno una rete `DIR_*` pilotata
+dall'FPGA; un `OE_*_N` per scheda, con pull-up, così i traslatori restano in alta impedenza
+finché l'FPGA non è configurata. PROG e CHA sono unite da due connettori 2×40 a 1,27 mm (segnali
+alternati a massa, 3,3 V dalla CHA, 5 V da entrambi i bordi). `CKE` della SDRAM è fissato alto.
+Sull'MVS le copie PROG di `RESET`/`SLOTCS` restano scollegate (si usano quelle della CHA).
+I/O FPGA usati: AES 214, MVS 234 su 245; l'MVS usa 7 ball del banco 8 che fanno anche da pin
+di configurazione (ultima risorsa in `assign_balls`).
+
+**Non verificato (scritto a memoria, da controllare sui datasheet prima di produrre):** il
+pinout TSSOP-48 dell'SN74ALVC164245, quello SOT-23-5 del TLV62569, quello a 54 pin della SDRAM,
+il land pattern del BGA, la modalità ECP5 `CFG[2:0] = 010` (SPI master), il pinout dell'header
+JTAG (non è uno standard) e tutte le correnti di alimentazione.
+
+**Stato:** schemi e netlist fatti per le quattro schede, con assegnazione delle ball.
+Piazzamento, routing, DRC e Gerbers non ancora fatti. Tutto ciò che si genera richiede una
 revisione umana prima della produzione.

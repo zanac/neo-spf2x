@@ -45,6 +45,26 @@ KiCad 7 files are generated from scripts, so that the boards follow the pin tabl
   the generated schematic exports to the same netlist (KiCad 7's CLI has no ERC).
 * Board outlines and edge fingers come from `hardware/outline.json` and `hardware/footprints/`.
 
-**Status:** schematic writer and FPGA footprint done; board netlists, placement, routing and
-DRC for AES/MVS × CHA/PROG are not done yet. Anything generated needs a human design review
+* `boards.py`: netlists of the four boards (AES/MVS × CHA/PROG) from `signals*.csv` and
+  `*_pins.csv`; `build_sch.py` writes `hardware/out/*.kicad_sch`, `*_fpga_pins.csv` (net → ball)
+  and `*_cha.lpf` (pin constraints), and checks every schematic by netlist round trip.
+* `tests/test_hw_netlist.py`: every console signal must go finger → translator → FPGA ball
+  (through the link for PROG), no ball used twice.
+
+**Design choices in the netlist.** One 16-bit SN74ALVC164245 per two groups of 8 signals of
+the same direction; bidirectional buses (`D0-15`, `SDRAD`, `SDPAD`, `SDD`) have a `DIR_*` net
+driven by the FPGA; one `OE_*_N` per board, pulled up so that the translators are Hi-Z until
+the FPGA is configured. PROG and CHA are joined by two 2×40 1.27 mm connectors (signals
+interleaved with ground, 3.3 V from CHA, 5 V from both edges). SDRAM `CKE` is tied high. On the
+MVS the PROG copies of `RESET`/`SLOTCS` are left unconnected (the CHA copies are used).
+FPGA I/O used: AES 214, MVS 234 of 245; the MVS needs 7 bank-8 balls that double as
+configuration pins (last resort in `assign_balls`).
+
+**Not verified (from memory, check against datasheets before fabrication):** the
+SN74ALVC164245 TSSOP-48 pinout, the TLV62569 SOT-23-5 pinout, the SDRAM 54-pin pinout, the
+BGA land pattern, the ECP5 `CFG[2:0] = 010` (SPI master) mode, the JTAG header pinout (not a
+standard one), and all supply currents.
+
+**Status:** schematics and netlists done for the four boards, with ball assignment. Placement,
+routing, DRC and Gerbers are not done yet. Anything generated needs a human design review
 before fabrication.

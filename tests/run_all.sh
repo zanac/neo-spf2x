@@ -37,6 +37,13 @@ if command -v iverilog >/dev/null 2>&1; then
 else
     echo "== gateware tests skipped (iverilog not installed)"
 fi
+echo "== hardware netlists (AES/MVS x CHA/PROG)"
+python3 "$ROOT/tests/test_hw_netlist.py"
+if command -v kicad-cli >/dev/null 2>&1; then
+    python3 "$ROOT/hardware/gen/build_sch.py"
+else
+    echo "== schematic round-trip skipped (kicad-cli not installed)"
+fi
 echo "== documentation EN/IT in step"
 python3 -I "$ROOT/tests/check_docs.py"
 echo "== ALL OK"
