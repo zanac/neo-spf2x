@@ -1,0 +1,185 @@
+board,side,pin,signal,dir_guess,basis
+PROG,A,5,D0,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,A,6,D1,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,A,7,D2,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,A,8,D3,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,A,9,D4,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,A,10,D5,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,A,11,D6,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,A,12,D7,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,A,13,D8,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,A,14,D9,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,A,15,D10,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,A,16,D11,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,A,17,D12,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,A,18,D13,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,A,19,D14,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,A,20,D15,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+PROG,A,21,R/W,in,address / strobe / clock / bank bits driven by the console
+PROG,A,22,AS,in,address / strobe / clock / bank bits driven by the console
+PROG,A,23,ROMOEU,in,address / strobe / clock / bank bits driven by the console
+PROG,A,24,ROMOEL,in,address / strobe / clock / bank bits driven by the console
+PROG,A,25,PORTOEU,in,address / strobe / clock / bank bits driven by the console
+PROG,A,26,PORTOEL,in,address / strobe / clock / bank bits driven by the console
+PROG,A,27,PORTWEU,in,address / strobe / clock / bank bits driven by the console
+PROG,A,28,PORTWEL,in,address / strobe / clock / bank bits driven by the console
+PROG,A,33,PORTADRS,in,address / strobe / clock / bank bits driven by the console
+PROG,A,42,SLOTCS,in,address / strobe / clock / bank bits driven by the console
+PROG,A,43,SDPA8,in,address / strobe / clock / bank bits driven by the console
+PROG,A,44,SDPA9,in,address / strobe / clock / bank bits driven by the console
+PROG,A,45,SDPA10,in,address / strobe / clock / bank bits driven by the console
+PROG,A,46,SDPA11,in,address / strobe / clock / bank bits driven by the console
+PROG,A,47,SDPMPX,in,address / strobe / clock / bank bits driven by the console
+PROG,A,48,SDPOE,in,address / strobe / clock / bank bits driven by the console
+PROG,A,49,SDRA8,in,address / strobe / clock / bank bits driven by the console
+PROG,A,50,SDRA9,in,address / strobe / clock / bank bits driven by the console
+PROG,A,51,SDRA20,in,address / strobe / clock / bank bits driven by the console
+PROG,A,52,SDRA21,in,address / strobe / clock / bank bits driven by the console
+PROG,A,53,SDRA22,in,address / strobe / clock / bank bits driven by the console
+PROG,A,54,SDRA23,in,address / strobe / clock / bank bits driven by the console
+PROG,A,55,SDRMPX,in,address / strobe / clock / bank bits driven by the console
+PROG,A,56,SDROE,in,address / strobe / clock / bank bits driven by the console
+PROG,B,5,A1,in,address / strobe / clock / bank bits driven by the console
+PROG,B,6,A2,in,address / strobe / clock / bank bits driven by the console
+PROG,B,7,A3,in,address / strobe / clock / bank bits driven by the console
+PROG,B,8,A4,in,address / strobe / clock / bank bits driven by the console
+PROG,B,9,A5,in,address / strobe / clock / bank bits driven by the console
+PROG,B,10,A6,in,address / strobe / clock / bank bits driven by the console
+PROG,B,11,A7,in,address / strobe / clock / bank bits driven by the console
+PROG,B,12,A8,in,address / strobe / clock / bank bits driven by the console
+PROG,B,13,A9,in,address / strobe / clock / bank bits driven by the console
+PROG,B,14,A10,in,address / strobe / clock / bank bits driven by the console
+PROG,B,15,A11,in,address / strobe / clock / bank bits driven by the console
+PROG,B,16,A12,in,address / strobe / clock / bank bits driven by the console
+PROG,B,17,A13,in,address / strobe / clock / bank bits driven by the console
+PROG,B,18,A14,in,address / strobe / clock / bank bits driven by the console
+PROG,B,19,A15,in,address / strobe / clock / bank bits driven by the console
+PROG,B,20,A16,in,address / strobe / clock / bank bits driven by the console
+PROG,B,21,A17,in,address / strobe / clock / bank bits driven by the console
+PROG,B,22,A18,in,address / strobe / clock / bank bits driven by the console
+PROG,B,23,A19,in,address / strobe / clock / bank bits driven by the console
+PROG,B,24,68KCLKB,in,address / strobe / clock / bank bits driven by the console
+PROG,B,25,ROMWAIT,out,wait lines towards the console (docs/BOOT.md)
+PROG,B,26,PWAIT0,out,wait lines towards the console (docs/BOOT.md)
+PROG,B,27,PWAIT1,out,wait lines towards the console (docs/BOOT.md)
+PROG,B,28,PDTACK,out,wait lines towards the console (docs/BOOT.md)
+PROG,B,33,ROMOE,in,address / strobe / clock / bank bits driven by the console
+PROG,B,34,4MB,unknown,"strap/size pin, function unverified"
+PROG,B,35,RESET,in,address / strobe / clock / bank bits driven by the console
+PROG,B,41,SDPAD0,bidir,ADPCM multiplexed address/data bus
+PROG,B,42,SDPAD1,bidir,ADPCM multiplexed address/data bus
+PROG,B,43,SDPAD2,bidir,ADPCM multiplexed address/data bus
+PROG,B,44,SDPAD3,bidir,ADPCM multiplexed address/data bus
+PROG,B,45,SDPAD4,bidir,ADPCM multiplexed address/data bus
+PROG,B,46,SDPAD5,bidir,ADPCM multiplexed address/data bus
+PROG,B,47,SDPAD6,bidir,ADPCM multiplexed address/data bus
+PROG,B,48,SDPAD7,bidir,ADPCM multiplexed address/data bus
+PROG,B,49,SDRAD0,bidir,ADPCM multiplexed address/data bus
+PROG,B,50,SDRAD1,bidir,ADPCM multiplexed address/data bus
+PROG,B,51,SDRAD2,bidir,ADPCM multiplexed address/data bus
+PROG,B,52,SDRAD3,bidir,ADPCM multiplexed address/data bus
+PROG,B,53,SDRAD4,bidir,ADPCM multiplexed address/data bus
+PROG,B,54,SDRAD5,bidir,ADPCM multiplexed address/data bus
+PROG,B,55,SDRAD6,bidir,ADPCM multiplexed address/data bus
+PROG,B,56,SDRAD7,bidir,ADPCM multiplexed address/data bus
+CHA,A,3,P0,in,address / strobe / clock / bank bits driven by the console
+CHA,A,4,P2,in,address / strobe / clock / bank bits driven by the console
+CHA,A,5,P4,in,address / strobe / clock / bank bits driven by the console
+CHA,A,6,P6,in,address / strobe / clock / bank bits driven by the console
+CHA,A,7,P8,in,address / strobe / clock / bank bits driven by the console
+CHA,A,8,P10,in,address / strobe / clock / bank bits driven by the console
+CHA,A,9,P12,in,address / strobe / clock / bank bits driven by the console
+CHA,A,10,P14,in,address / strobe / clock / bank bits driven by the console
+CHA,A,11,P16,in,address / strobe / clock / bank bits driven by the console
+CHA,A,12,P18,in,address / strobe / clock / bank bits driven by the console
+CHA,A,13,P20,in,address / strobe / clock / bank bits driven by the console
+CHA,A,14,P22,in,address / strobe / clock / bank bits driven by the console
+CHA,A,15,PCK1B,in,address / strobe / clock / bank bits driven by the console
+CHA,A,16,PCK2B,in,address / strobe / clock / bank bits driven by the console
+CHA,A,17,2H1,in,address / strobe / clock / bank bits driven by the console
+CHA,A,18,CA4,in,address / strobe / clock / bank bits driven by the console
+CHA,A,19,CR0,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,A,20,CR2,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,A,21,CR4,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,A,22,CR6,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,A,23,CR8,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,A,24,CR10,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,A,25,CR12,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,A,26,CR14,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,A,27,CR16,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,A,28,CR18,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,A,33,CR20,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,A,34,CR22,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,A,35,CR24,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,A,36,CR26,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,A,37,CR28,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,A,38,CR30,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,A,42,SLOTCS,in,address / strobe / clock / bank bits driven by the console
+CHA,A,43,SDA0,in,address / strobe / clock / bank bits driven by the console
+CHA,A,44,SDA1,in,address / strobe / clock / bank bits driven by the console
+CHA,A,45,SDA2,in,address / strobe / clock / bank bits driven by the console
+CHA,A,46,SDA3,in,address / strobe / clock / bank bits driven by the console
+CHA,A,47,SDA4,in,address / strobe / clock / bank bits driven by the console
+CHA,A,48,SDA5,in,address / strobe / clock / bank bits driven by the console
+CHA,A,49,SDA6,in,address / strobe / clock / bank bits driven by the console
+CHA,A,50,SDA7,in,address / strobe / clock / bank bits driven by the console
+CHA,A,51,SDA8,in,address / strobe / clock / bank bits driven by the console
+CHA,A,52,SDA9,in,address / strobe / clock / bank bits driven by the console
+CHA,A,53,SDA10,in,address / strobe / clock / bank bits driven by the console
+CHA,A,54,SDA11,in,address / strobe / clock / bank bits driven by the console
+CHA,A,55,SDA12,in,address / strobe / clock / bank bits driven by the console
+CHA,A,56,SDA13,in,address / strobe / clock / bank bits driven by the console
+CHA,A,57,SDA14,in,address / strobe / clock / bank bits driven by the console
+CHA,A,58,SDA15,in,address / strobe / clock / bank bits driven by the console
+CHA,B,3,P1,in,address / strobe / clock / bank bits driven by the console
+CHA,B,4,P3,in,address / strobe / clock / bank bits driven by the console
+CHA,B,5,P5,in,address / strobe / clock / bank bits driven by the console
+CHA,B,6,P7,in,address / strobe / clock / bank bits driven by the console
+CHA,B,7,P9,in,address / strobe / clock / bank bits driven by the console
+CHA,B,8,P11,in,address / strobe / clock / bank bits driven by the console
+CHA,B,9,P13,in,address / strobe / clock / bank bits driven by the console
+CHA,B,10,P15,in,address / strobe / clock / bank bits driven by the console
+CHA,B,11,P17,in,address / strobe / clock / bank bits driven by the console
+CHA,B,12,P19,in,address / strobe / clock / bank bits driven by the console
+CHA,B,13,P21,in,address / strobe / clock / bank bits driven by the console
+CHA,B,14,P23,in,address / strobe / clock / bank bits driven by the console
+CHA,B,15,24M,in,address / strobe / clock / bank bits driven by the console
+CHA,B,16,12M,in,address / strobe / clock / bank bits driven by the console
+CHA,B,17,8M,in,address / strobe / clock / bank bits driven by the console
+CHA,B,18,RESET,in,address / strobe / clock / bank bits driven by the console
+CHA,B,19,CR1,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,B,20,CR3,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,B,21,CR5,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,B,22,CR7,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,B,23,CR9,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,B,24,CR11,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,B,25,CR13,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,B,26,CR15,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,B,27,CR17,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,B,28,CR19,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,B,33,CR21,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,B,34,CR23,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,B,35,CR25,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,B,36,CR27,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,B,37,CR29,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,B,38,CR31,out,MVS: 32-bit parallel C ROM data towards the console
+CHA,B,39,FIXD0,out,pixel / fix data towards the console
+CHA,B,40,FIXD1,out,pixel / fix data towards the console
+CHA,B,41,FIXD2,out,pixel / fix data towards the console
+CHA,B,42,FIXD3,out,pixel / fix data towards the console
+CHA,B,43,FIXD4,out,pixel / fix data towards the console
+CHA,B,44,FIXD5,out,pixel / fix data towards the console
+CHA,B,45,FIXD6,out,pixel / fix data towards the console
+CHA,B,46,FIXD7,out,pixel / fix data towards the console
+CHA,B,47,SDRD0,in,address / strobe / clock / bank bits driven by the console
+CHA,B,48,SDRD1,in,address / strobe / clock / bank bits driven by the console
+CHA,B,49,SDROM,in,address / strobe / clock / bank bits driven by the console
+CHA,B,50,SDMRD,in,address / strobe / clock / bank bits driven by the console
+CHA,B,51,SDD0,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+CHA,B,52,SDD1,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+CHA,B,53,SDD2,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+CHA,B,54,SDD3,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+CHA,B,55,SDD4,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+CHA,B,56,SDD5,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+CHA,B,57,SDD6,bidir,"data bus (read by console, write for bank latch / Z80 bus)"
+CHA,B,58,SDD7,bidir,"data bus (read by console, write for bank latch / Z80 bus)"

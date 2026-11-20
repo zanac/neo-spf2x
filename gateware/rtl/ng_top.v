@@ -4,13 +4,14 @@
 // real timing are a PCB/constraint matter).  MCU side: a register bus with
 // the map of firmware/ngsd_loader.h and an SDRAM word port for the loader.
 `timescale 1ns/1ps
-module ng_top #(parameter BOOT_HEX = "") (
+module ng_top #(parameter BOOT_HEX = "", parameter MVS = 0) (
     input  wire        clk, rst,
     input  wire        tick12,
     // sprites + fix (CHA connector)
     input  wire        pck1b, pck2b, ca4, load, h, s2h1,
     input  wire [23:0] pbus,
     output wire [3:0]  gad, gbd,
+    output wire [31:0] cr,            // MVS only (parameter MVS = 1): CR0-CR31
     output wire        dota, dotb,
     output wire [7:0]  fixd,
     output wire        c_rdy0, c_rdy1, s_fvalid,    // fetch status (debug/latency)
@@ -134,11 +135,21 @@ module ng_top #(parameter BOOT_HEX = "") (
     assign cl_req[4] = m_mreq; assign cl_addr[159:128] = m_ma;
     assign cl_req[5] = v_mreq; assign cl_addr[191:160] = v_ma;
 
-    ng_cfetch cf(.clk(clk), .rst(rst | ~run_r), .tick12(tick12), .pck1b(pck1b),
-        .pbus(pbus), .ca4(ca4), .load(load), .h(h), .tile_mask(c_mask),
-        .c_base(addr[2]), .gad(gad), .gbd(gbd), .dota(dota), .dotb(dotb),
-        .mem_req(c_mreq), .mem_addr(c_ma), .mem_valid(cl_rvalid[1]),
-        .mem_rdata(cl_rdata), .rdy0(c_rdy0), .rdy1(c_rdy1));
+    generate if (MVS == 0) begin : g_aes
+        ng_cfetch cf(.clk(clk), .rst(rst | ~run_r), .tick12(tick12), .pck1b(pck1b),
+            .pbus(pbus), .ca4(ca4), .load(load), .h(h), .tile_mask(c_mask),
+            .c_base(addr[2]), .gad(gad), .gbd(gbd), .dota(dota), .dotb(dotb),
+            .mem_req(c_mreq), .mem_addr(c_ma), .mem_valid(cl_rvalid[1]),
+            .mem_rdata(cl_rdata), .rdy0(c_rdy0), .rdy1(c_rdy1));
+        assign cr = 32'd0;
+    end else begin : g_mvs
+        ng_cfetch_mvs cfm(.clk(clk), .rst(rst | ~run_r), .pck1b(pck1b),
+            .pbus(pbus), .ca4(ca4), .tile_mask(c_mask), .c_base(addr[2]),
+            .cr(cr), .ready(c_rdy0), .mem_req(c_mreq), .mem_addr(c_ma),
+            .mem_valid(cl_rvalid[1]), .mem_rdata(cl_rdata));
+        assign c_rdy1 = c_rdy0;
+        assign gad = 4'd0; assign gbd = 4'd0; assign dota = 1'b0; assign dotb = 1'b0;
+    end endgenerate
     ng_sfetch sf(.clk(clk), .rst(rst | ~run_r), .pck2b(pck2b), .pbus(pbus),
         .s2h1(s2h1), .tile_mask(s_mask), .s_base(addr[3]), .fixd(fixd),
         .fvalid(s_fvalid), .mem_req(s_mreq), .mem_addr(s_ma),

@@ -9,6 +9,7 @@ aperti.
 | Percorso | Cosa |
 |----------|------|
 | `docs/FORMAT.md` | Specifica del formato `.ngpk` e delle ricette |
+| `docs/MVS.md`, `docs/PCB.md` | Differenze MVS/AES, pinout MVS e partizione delle schede (AES + MVS) |
 | `docs/AES_PINOUT.md` | Nomi dei segnali e numeri di pin dei connettori AES PROG e CHA |
 | `docs/TIMING.md` | Comportamento di sprite, fix, bank switching e NEO-ZMC ricavato da Geolith, con ciò che manca |
 | `docs/ARCHITECTURE.md` | Architettura, mappa SDRAM, contratto con l'FPGA, punti aperti |
@@ -19,7 +20,7 @@ aperti.
 | `docs/BOOT.md` | Come la console vede la cartuccia durante il caricamento (stub di avvio) |
 | `boot/` | Sorgente 68k dello stub (`stub.S`) e binario |
 | `docs/COMPONENTS.md` | Budget di I/O, scelta di FPGA, SDRAM, MCU, traslatori e punti aperti dell'hardware |
-| `hardware/` | `gen_signals.py` e `signals.csv`: i 162 segnali del connettore con direzione dedotta |
+| `hardware/` | `gen_signals.py`, `signals.csv` (162 segnali AES), `signals_mvs.csv` (184 pin MVS), `mvs_pins.csv`, `extract_kicad_pins.py` |
 | `firmware/` | Parser `.ngpk` e loader in C99 portabile, più test su PC |
 | `tests/` | Test del packer e script che esegue tutto |
 

@@ -20,6 +20,12 @@ Dei 162 segnali, per nome: 99 ingressi (indirizzi, strobe, clock, bit di banco),
 bus ADPCM multiplexati `SDPAD`/`SDRAD`), 1 incerto (`4MB`). **Le direzioni sono
 dedotte dai nomi**, non verificate (colonna `basis` di `hardware/signals.csv`).
 
+### Budget MVS
+
+L'MVS ha **182 segnali** (`docs/MVS.md`): 182 + 39 + ~12 + ~8 ≈ **241** con il bus MCU
+parallelo, ≈ 233 con un link SPI. Sul 45F caBGA554 (245 I/O) restano pochi pin:
+per l'MVS si prevede la **LFE5U-85F nello stesso caBGA554** (259 I/O).
+
 ## 2. FPGA
 
 Dati dai siti dei costruttori (consultati oggi):

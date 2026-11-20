@@ -23,6 +23,8 @@ def direction(sig):
         return "bidir", "data bus (read by console, write for bank latch / Z80 bus)"
     if re.fullmatch(r"SD(PAD|RAD)\d", s):
         return "bidir", "ADPCM multiplexed address/data bus"
+    if re.fullmatch(r"CR\d+", s):
+        return "out", "MVS: 32-bit parallel C ROM data towards the console"
     if s in ("DOTA", "DOTB") or re.fullmatch(r"(GAD|GBD|FIXD)\d", s):
         return "out", "pixel / fix data towards the console"
     if s in ("ROMWAIT", "PWAIT0", "PWAIT1", "PDTACK"):
@@ -30,6 +32,28 @@ def direction(sig):
     if s == "4MB":
         return "unknown", "strap/size pin, function unverified"
     return "in", "address / strobe / clock / bank bits driven by the console"
+
+
+def mvs():
+    """MVS: pins come from hardware/mvs_pins.csv (extract_kicad_pins.py)."""
+    rows = []
+    with open(os.path.join(HERE, "mvs_pins.csv"), newline="") as f:
+        for r in csv.DictReader(f):
+            if r["signal"] in SKIP:
+                continue
+            d, basis = direction(r["signal"])
+            rows.append((r["board"], r["side"], int(r["pin"]), r["signal"], d, basis))
+    with open(os.path.join(HERE, "signals_mvs.csv"), "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["board", "side", "pin", "signal", "dir_guess", "basis"])
+        w.writerows(rows)
+    uniq = {r[3] for r in rows}
+    print("MVS console-side pins:", len(rows), "unique signals:", len(uniq))
+    by = {}
+    for r in rows:
+        by[r[4]] = by.get(r[4], 0) + 1
+    for d, n in sorted(by.items()):
+        print(f"  {d:8} {n:3}")
 
 
 def main():
@@ -60,6 +84,7 @@ def main():
     print("console-side signals needing a 5 V <-> 3.3 V path:", len(rows))
     for d, l in sorted(by.items()):
         print(f"  {d:8} {len(l):3}")
+    mvs()
     return 0
 
 
